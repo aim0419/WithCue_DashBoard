@@ -1,4 +1,5 @@
 function getFullYearFromTwoDigits(twoDigits) {
+  // 2자리 연도를 현재 연도 기준으로 1900/2000년대로 해석한다.
   const currentYear = new Date().getFullYear();
   const currentTwoDigits = currentYear % 100;
   return twoDigits <= currentTwoDigits ? 2000 + twoDigits : 1900 + twoDigits;
@@ -18,6 +19,7 @@ function isValidDateParts(year, month, day) {
 }
 
 export function normalizeBirthDateInput(rawValue) {
+  // 사용자 입력은 6자리지만, 저장은 YYYYMMDD 8자리 숫자로 맞춘다.
   const digits = String(rawValue || "").replace(/\D/g, "").slice(0, 6);
 
   if (digits.length !== 6) {
@@ -54,6 +56,7 @@ export function normalizeBirthDateInput(rawValue) {
 }
 
 export function formatBirthDateInput(rawValue) {
+  // 숫자만 입력해도 화면에서는 YY-MM-DD처럼 보이게 포맷한다.
   const digits = String(rawValue || "").replace(/\D/g, "").slice(0, 6);
 
   if (digits.length <= 2) {

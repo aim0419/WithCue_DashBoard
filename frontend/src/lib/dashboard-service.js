@@ -1,6 +1,7 @@
 import { collection, getDocs } from "firebase/firestore";
 import { getFirebaseDb } from "./firebase-client.js";
 
+// Firebase가 비어 있거나 연결 실패했을 때 UI 확인용으로 쓰는 예비 데이터다.
 const mockDashboardData = {
   source: "mock",
   updatedAt: "2026-03-24 09:55",
@@ -63,6 +64,7 @@ const emptyDashboardData = {
 };
 
 function aggregateDashboard(snapshotDocs) {
+  // Firestore 문서를 화면이 바로 쓸 수 있는 대시보드 구조로 정규화한다.
   const locations = snapshotDocs.map((snapshot) => {
     const data = snapshot.data();
     return {
@@ -97,6 +99,7 @@ function aggregateDashboard(snapshotDocs) {
 
 export async function getDashboardData() {
   try {
+    // 관리자 대시보드는 locations 컬렉션만 읽어서 전체/지점 수치를 모두 만든다.
     const db = getFirebaseDb();
     const snapshot = await getDocs(collection(db, "locations"));
 

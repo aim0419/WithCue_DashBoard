@@ -16,6 +16,7 @@ app = Flask(__name__)
 app.config["SEND_FILE_MAX_AGE_DEFAULT"] = 0
 app.logger.setLevel(logging.INFO)
 
+# 로컬 저장 경로와 Firebase 동기화 스크립트 위치를 한곳에서 관리한다.
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
 SYNC_SCRIPT = PROJECT_ROOT / "backend" / "scripts" / "sync-locations.mjs"
 DESKTOP_DIR = Path.home() / "Desktop"
@@ -73,6 +74,7 @@ CAMERA_OPEN_BACKENDS = [
 
 
 def get_site_config(site_key: str | None) -> dict[str, str]:
+    # 쿼리스트링이나 API payload의 site 값을 지점 코드/표시명으로 정규화한다.
     return SITE_CONFIG.get((site_key or "").lower(), SITE_CONFIG["aim"])
 
 
@@ -96,6 +98,7 @@ def get_camera_backend_name(backend_name: str) -> str:
 
 
 def get_windows_camera_names() -> list[str]:
+    # 카메라 선택 UI에 실제 장치명을 보여주기 위해 Windows 장치 목록을 읽는다.
     if not shutil.which("powershell"):
         return []
 
@@ -139,6 +142,7 @@ def get_windows_camera_names() -> list[str]:
 
 
 def get_camera_choices() -> list[dict[str, int | str]]:
+    # 장치명과 인덱스를 같이 내려 프론트에서 사람이 읽기 쉬운 목록을 만든다.
     device_names = get_windows_camera_names()
     choices: list[dict[str, int | str]] = []
 
@@ -152,6 +156,7 @@ def get_camera_choices() -> list[dict[str, int | str]]:
 
 
 def sync_locations_snapshot() -> None:
+    # 로컬 CSV/영상 폴더 집계를 별도 Node 스크립트로 넘겨 Firestore locations를 갱신한다.
     node_binary = shutil.which("node")
     if not node_binary or not SYNC_SCRIPT.exists():
         app.logger.warning("locations sync skipped: node or sync script is unavailable")
@@ -176,6 +181,7 @@ def sync_locations_snapshot() -> None:
 
 
 def sync_locations_snapshot_async() -> None:
+    # 등록/녹화 종료 응답 속도를 해치지 않도록 집계는 백그라운드에서 처리한다.
     threading.Thread(target=sync_locations_snapshot, daemon=True).start()
 
 
@@ -205,6 +211,7 @@ class CameraManager:
         self.read_fail_count = 0
 
     def list_cameras(self) -> list[dict[str, int | str]]:
+        # 현장 장비 기준으로 짧은 인덱스 범위만 검사해 카메라 탐색 지연을 줄인다.
         cameras: list[dict[str, int | str]] = []
         seen_indexes: set[int] = set()
         for index in CAMERA_SCAN_RANGE:
@@ -243,6 +250,7 @@ class CameraManager:
         with self.lock:
             if self.camera_index == index and self.capture is not None and self.capture.isOpened():
                 return
+            # 새 카메라 오픈 실패 시 기존 정상 프리뷰를 유지하기 위해 이전 상태를 보관한다.
             previous_capture = self.capture
             previous_index = self.camera_index
             previous_frame = self.frame
@@ -254,6 +262,7 @@ class CameraManager:
             last_error_backend = None
 
             for backend_name, backend_flag in CAMERA_OPEN_BACKENDS:
+                # Windows에서 잘 잡히는 backend를 우선순위대로 시도하고, 실제 프레임이 나와야 성공으로 본다.
                 if backend_flag is None:
                     current_capture = cv2.VideoCapture(index)
                 else:
@@ -328,6 +337,7 @@ class CameraManager:
             self._close_locked()
 
     def _update_frames(self) -> None:
+        # 프리뷰와 실제 녹화가 같은 캡처를 공유하도록 최신 프레임을 계속 메모리에 유지한다.
         while True:
             with self.lock:
                 if not self.running or self.capture is None:
@@ -353,6 +363,7 @@ class CameraManager:
             time.sleep(0.01)
 
     def get_jpeg_frame(self) -> bytes | None:
+        # MJPEG 프리뷰용 전송은 크기와 품질을 조금 낮춰 브라우저 부담을 줄인다.
         with self.lock:
             if self.frame is None:
                 return None
@@ -374,6 +385,7 @@ class CameraManager:
         return buffer.tobytes()
 
     def start_recording(self, output_path: Path) -> None:
+        # 실제 저장 영상은 프리뷰와 별도로 mp4 파일로 기록된다.
         with self.lock:
             if self.capture is None or not self.capture.isOpened():
                 raise RuntimeError("카메라가 준비되지 않았습니다.")
@@ -403,6 +415,7 @@ camera_manager = CameraManager()
 
 
 def ensure_storage() -> None:
+    # 처음 실행하는 지점 PC에서도 폴더 구조와 participants.csv가 자동으로 준비되게 한다.
     SAVE_ROOT.mkdir(parents=True, exist_ok=True)
     for path in PART_DIRS.values():
         path.mkdir(parents=True, exist_ok=True)
@@ -435,6 +448,7 @@ def normalize_name(name: str) -> str:
 
 
 def find_participant(name: str, birth_date: str, gender: str) -> dict[str, str] | None:
+    # 같은 참여자인지 판별할 때는 이름/생년월일/성별 조합을 사용한다.
     normalized_name = normalize_name(name)
     normalized_birth_date = birth_date.strip()
     normalized_gender = normalize_gender(gender)
@@ -483,6 +497,7 @@ def get_or_create_participant(
     consent: str,
     site_code: str,
 ) -> tuple[str, bool]:
+    # 참가자 등록 시 기존 ID를 재사용하거나 새 ID를 발급해 CSV와 영상 파일명을 연결한다.
     rows = load_participants()
     now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     existing = find_participant(name, birth_date, gender)
@@ -521,6 +536,7 @@ def get_or_create_participant(
 
 
 def get_next_recording_path(participant_id: str, part_name: str, site_code: str) -> Path:
+    # 파일명 규칙: 지점코드_참가자ID_부위코드_촬영순번.mp4
     part_dir = PART_DIRS[part_name]
     part_code = PART_CODES[part_name]
     highest_take = 0
@@ -545,6 +561,7 @@ def add_no_cache_headers(response):
 @app.get("/")
 def index():
     ensure_storage()
+    # React 로그인에서 넘긴 사용자 정보를 템플릿 초기 상태에 주입해 바로 촬영 단계로 진입시킨다.
     site_key = request.args.get("site", "aim")
     site_config = get_site_config(site_key)
     initial_state = {
@@ -595,6 +612,7 @@ def check_participant():
 
 @app.post("/api/register")
 def register():
+    # 수집 페이지 진입 직후 자동으로 호출되어 로컬 참가자 CSV를 갱신한다.
     payload = request.get_json(silent=True) or {}
     name = str(payload.get("name", "")).strip()
     birth_date = str(payload.get("birth_date", "")).strip()
@@ -625,6 +643,7 @@ def register():
 
 @app.post("/api/preview/start")
 def preview_start():
+    # 브라우저 프리뷰에 맞춰 서버 쪽 캡처도 같은 인덱스 카메라로 연다.
     payload = request.get_json(silent=True) or {}
     camera_index = payload.get("camera_index")
     if camera_index is None:
@@ -638,6 +657,7 @@ def preview_start():
 
 @app.post("/api/record/start")
 def record_start():
+    # 부위 버튼 클릭 시 해당 부위 폴더 아래에 새 mp4 파일을 만들어 녹화를 시작한다.
     payload = request.get_json(silent=True) or {}
     participant_id = str(payload.get("participant_id", "")).strip()
     part_name = str(payload.get("part_name", "")).strip()
@@ -663,6 +683,7 @@ def record_start():
 
 @app.post("/api/record/stop")
 def record_stop():
+    # 녹화가 끝나면 writer를 닫고 최신 건수를 Firebase로 비동기 반영한다.
     camera_manager.stop_recording()
     camera_manager.close_camera()
     sync_locations_snapshot_async()
@@ -679,6 +700,7 @@ def frame():
 
 @app.get("/video_feed")
 def video_feed():
+    # MJPEG 프리뷰가 필요한 경우를 위해 스트림 엔드포인트를 유지한다.
     return Response(
         generate_mjpeg_stream(),
         mimetype="multipart/x-mixed-replace; boundary=frame",

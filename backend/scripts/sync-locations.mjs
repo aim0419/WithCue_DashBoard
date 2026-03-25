@@ -7,6 +7,7 @@ import { doc, getFirestore, serverTimestamp, setDoc } from "firebase/firestore";
 
 import { firebaseConfig } from "./firebase-config.mjs";
 
+// 로컬 촬영 결과를 어느 Firestore 문서에 반영할지 지점별로 매핑해 둔다.
 const SAVE_ROOT = path.join(os.homedir(), "Desktop", "Data_Auto");
 const PARTICIPANTS_CSV = path.join(SAVE_ROOT, "participants.csv");
 
@@ -38,6 +39,7 @@ const BODY_PART_FOLDERS = {
 };
 
 function readCsvRows(filePath) {
+  // participants.csv를 최소한의 파서로 읽어 집계 계산에 쓸 행 배열로 바꾼다.
   if (!fs.existsSync(filePath)) {
     return [];
   }
@@ -65,6 +67,7 @@ function readCsvRows(filePath) {
 }
 
 function countVideoFiles(directoryPath, siteCode) {
+  // 지점 코드로 시작하는 mp4만 세서 각 지점별 촬영 건수를 분리한다.
   if (!fs.existsSync(directoryPath)) {
     return 0;
   }
@@ -77,6 +80,7 @@ function countVideoFiles(directoryPath, siteCode) {
 }
 
 function buildLocationPayload(documentId, participantRows) {
+  // CSV 동의 수와 부위별 로컬 파일 수를 Firestore locations 문서 형태로 합친다.
   const config = LOCATION_CONFIG[documentId];
   const bodyParts = Object.entries(BODY_PART_FOLDERS).reduce((accumulator, [fieldKey, folderName]) => {
     const folderPath = path.join(SAVE_ROOT, folderName);
@@ -99,6 +103,7 @@ function buildLocationPayload(documentId, participantRows) {
 }
 
 async function main() {
+  // 모든 지점 문서를 순회하며 최신 집계를 merge 방식으로 반영한다.
   const app = initializeApp(firebaseConfig);
   const db = getFirestore(app);
   const participantRows = readCsvRows(PARTICIPANTS_CSV);

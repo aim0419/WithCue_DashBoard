@@ -2,6 +2,7 @@ import fs from "node:fs";
 import path from "node:path";
 
 function parseEnvFile(filePath) {
+  // dotenv 패키지 없이도 간단한 KEY=VALUE 파일을 읽을 수 있게 직접 파싱한다.
   if (!fs.existsSync(filePath)) {
     return {};
   }
@@ -27,6 +28,7 @@ function parseEnvFile(filePath) {
 }
 
 function loadLocalEnv() {
+  // 루트/프론트 기준 여러 위치를 훑어, 로컬 실행 위치가 달라도 같은 env를 찾도록 한다.
   const candidates = [
     path.resolve(process.cwd(), ".env.local"),
     path.resolve(process.cwd(), ".env"),
@@ -49,6 +51,7 @@ function readEnv(name) {
   return process.env[name] || localEnv[name] || "";
 }
 
+// 프론트와 로컬 스크립트가 같은 Firebase 프로젝트를 보도록 공용 설정 객체를 만든다.
 export const firebaseConfig = {
   apiKey: readEnv("VITE_FIREBASE_API_KEY"),
   authDomain: readEnv("VITE_FIREBASE_AUTH_DOMAIN"),

@@ -4,6 +4,7 @@ import { firebaseConfig, hasFirebaseConfig } from "../../config/firebase-config.
 
 export function getFirebaseApp() {
   if (!hasFirebaseConfig()) {
+    // env 누락 시 초기화 단계에서 바로 원인을 드러내도록 명시적으로 실패시킨다.
     throw new Error("Firebase environment variables are missing.");
   }
 
