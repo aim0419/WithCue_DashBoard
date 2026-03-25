@@ -5,6 +5,7 @@ function formatNumber(value, suffix) {
 }
 
 function createDonutBackground(metricKey, locations) {
+  // 지점별 수치를 conic-gradient로 환산해 라이브러리 없이 도넛 차트를 만든다.
   const total = locations.reduce((sum, location) => sum + Number(location[metricKey] || 0), 0);
 
   if (!total) {
@@ -24,6 +25,7 @@ function createDonutBackground(metricKey, locations) {
 }
 
 function getSyncMessage(data) {
+  // 현재 대시보드가 어떤 데이터 소스를 보고 있는지 한 줄로 요약한다.
   if (!data) {
     return "데이터 확인 중";
   }
@@ -60,6 +62,7 @@ export function SummaryPanel({
 
       {showDonut ? (
         <div className="donut-panel">
+          {/* 전체 페이지에서는 지점 비율 도넛을, 개별 페이지에서는 단순 KPI를 보여준다. */}
           <div className="donut-block">
             <p className="donut-block__label">총 세션 저장 수</p>
             <div

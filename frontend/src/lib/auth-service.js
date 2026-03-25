@@ -14,6 +14,7 @@ function normalizeName(name) {
 }
 
 export async function signUpUser({ name, birthDate, gender, consentAgreed }) {
+  // 이름/생년월일/성별 조합으로 같은 사용자의 중복 가입을 막는다.
   const db = getFirebaseDb();
   const normalizedName = normalizeName(name);
   const normalizedBirthDate = Number(birthDate);
@@ -45,6 +46,7 @@ export async function signUpUser({ name, birthDate, gender, consentAgreed }) {
   }
 
   const createdUser = await addDoc(usersRef, {
+    // 관리자 승격은 콘솔에서 Role 값을 바꾸는 방식으로 운영한다.
     Name: normalizedName,
     BirthDate: normalizedBirthDate,
     Gender: gender,
@@ -69,6 +71,7 @@ export async function signUpUser({ name, birthDate, gender, consentAgreed }) {
 }
 
 export async function loginUser({ name, birthDate, gender, location }) {
+  // 로그인 시에도 같은 사용자 식별 조합으로 Firestore 문서를 찾는다.
   const db = getFirebaseDb();
   const normalizedName = normalizeName(name);
   const normalizedBirthDate = Number(birthDate);

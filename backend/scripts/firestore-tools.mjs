@@ -13,6 +13,7 @@ const app = initializeApp(firebaseConfig);
 const db = getFirestore(app);
 
 function printUsage() {
+  // 로컬에서 Firestore 문서를 빠르게 확인/수정할 수 있는 수동 관리 도구다.
   console.log(`Usage:
   node scripts/firestore-tools.mjs list
   node scripts/firestore-tools.mjs get <DocumentId>
@@ -50,6 +51,7 @@ async function getLocation(documentId) {
 }
 
 async function mergeLocation(documentId, jsonString) {
+  // 일부 필드만 덮어쓰는 merge 방식이라 대시보드 문서를 안전하게 보정할 수 있다.
   let payload;
 
   try {
@@ -66,6 +68,7 @@ async function mergeLocation(documentId, jsonString) {
 }
 
 async function main() {
+  // 간단한 CLI 분기만 처리하고, 실제 작업은 위 helper 함수들에 위임한다.
   const [command, documentId, jsonString] = process.argv.slice(2);
 
   if (!command) {

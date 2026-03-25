@@ -7,6 +7,7 @@ import { categoryPages, pageMeta } from "./data/dashboard-meta.js";
 import { useDashboardData } from "./hooks/useDashboardData.js";
 import { loginUser, signUpUser } from "./lib/auth-service.js";
 
+// 로컬 저장소에는 최근 인증 정보를 보조적으로만 저장한다.
 const AUTH_PROFILE_KEY = "withcue-auth-profile";
 const AUTH_ADMIN_SESSION_KEY = "withcue-admin-session";
 
@@ -32,12 +33,14 @@ function readJsonFromStorage(key) {
 }
 
 function navigateTo(paramsObject) {
+  // SPA 내부 이동이므로 새로고침 없이 주소만 갱신한다.
   const params = new URLSearchParams(paramsObject);
   const nextUrl = `/?${params.toString()}`;
   window.history.replaceState({}, "", nextUrl);
 }
 
 function buildCollectionAppUrl(session) {
+  // 일반 수집자는 로컬 Flask 수집 앱으로 보내고, 필요한 기본 정보도 같이 전달한다.
   const params = new URLSearchParams();
   params.set("site", session?.location || "aim");
 
@@ -57,6 +60,7 @@ function buildCollectionAppUrl(session) {
 }
 
 function sumBodyParts(locations) {
+  // 현재 선택된 지점들의 부위별 수치를 하나의 body map 데이터로 합친다.
   return locations.reduce(
     (totals, location) => {
       totals.Neck += Number(location.BodyParts?.Neck || 0);
@@ -87,6 +91,7 @@ export default function App() {
   const { data, loading } = useDashboardData();
 
   useEffect(() => {
+    // 뒤로가기나 수동 URL 변경이 발생해도 현재 화면 상태를 다시 맞춘다.
     const handleLocationChange = () => {
       setView(getViewFromLocation());
       setPageKey(getPageKeyFromLocation());
@@ -102,6 +107,7 @@ export default function App() {
   }, []);
 
   useEffect(() => {
+    // 관리자 세션이 아니면 대시보드 접근을 막고 로그인 화면으로 돌린다.
     if (!authSession) {
       if (view === "dashboard") {
         setView("login");
@@ -157,6 +163,7 @@ export default function App() {
 
   async function handleSignup(form) {
     try {
+      // 회원가입은 Firestore users 컬렉션을 갱신하고, 완료 후 로그인 화면으로 돌아간다.
       const result = await signUpUser(form);
 
       if (!result.ok) {
@@ -180,6 +187,7 @@ export default function App() {
 
   async function handleLogin(form, mode) {
     try {
+      // 관리자와 일반 수집자를 여기서 분기해 서로 다른 목적지로 보낸다.
       const profile = authProfile ?? readJsonFromStorage(AUTH_PROFILE_KEY);
 
       if (!profile && mode !== "admin-login") {
@@ -213,6 +221,7 @@ export default function App() {
         setPageKey("main");
         navigateTo({ page: "main" });
       } else {
+        // 일반 수집자는 세션을 오래 유지하지 않고 곧바로 로컬 촬영 페이지로 이동한다.
         window.localStorage.removeItem(AUTH_ADMIN_SESSION_KEY);
         setAuthSession(null);
         setView("login");
@@ -230,6 +239,7 @@ export default function App() {
   }
 
   function handleNavigatePage(nextPageKey) {
+    // 카테고리 전환은 링크 새로고침 대신 내부 상태만 바꿔 대시보드 맥락을 유지한다.
     setPageKey(nextPageKey);
     setView("dashboard");
     navigateTo({ page: nextPageKey });
@@ -243,6 +253,7 @@ export default function App() {
   }
 
   useEffect(() => {
+    // 현재 화면에 맞게 브라우저 탭 제목도 함께 바꿔준다.
     if (!authSession) {
       if (view === "login") {
         document.title = "WithCue 관리자 대시보드 - 로그인";

@@ -9,6 +9,7 @@ export function useDashboardData() {
     let cancelled = false;
 
     async function load() {
+      // App에서는 단순한 상태만 받도록 훅 내부에서 로딩과 취소 처리를 함께 감싼다.
       setLoading(true);
       const nextData = await getDashboardData();
       if (!cancelled) {

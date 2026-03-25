@@ -1,3 +1,4 @@
+// 페이지/지점/인체 부위별 고정 메타데이터를 한 곳에서 관리한다.
 export const pageMeta = {
   main: {
     title: "전체",
@@ -33,6 +34,7 @@ export const bodyPartMeta = [
   { key: "RightKnee", label: "오른쪽 무릎", className: "body-part-card body-part-card--right-knee" },
 ];
 
+// 도넛 그래프는 이 색 배열을 순환해서 사용한다.
 export const donutColors = [
   "rgb(255, 99, 132)",
   "rgb(54, 162, 235)",

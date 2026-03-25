@@ -13,6 +13,7 @@ const locationOptions = [
 ];
 
 function buildQuery(nextView) {
+  // 인증 화면 전환 시에는 view만 바꾸고 대시보드 page 파라미터는 제거한다.
   const params = new URLSearchParams(window.location.search);
   params.set("view", nextView);
   params.delete("page");
@@ -110,6 +111,7 @@ function AuthForm({ mode, onLogin, onSignup }) {
   }, [isAdminLogin, isLogin]);
 
   const birthDatePreview = useMemo(() => {
+    // 입력 중에는 사람이 읽는 날짜를 보여주고, 제출 시에는 정규화된 숫자를 사용한다.
     const result = normalizeBirthDateInput(form.birthDate);
     return result.ok ? result.display : "";
   }, [form.birthDate]);
@@ -122,6 +124,7 @@ function AuthForm({ mode, onLogin, onSignup }) {
   async function handleSubmit(event) {
     event.preventDefault();
 
+    // 공통 입력 검증을 프론트에서 먼저 끝내고 나서만 실제 가입/로그인 요청을 보낸다.
     if (!form.name.trim() || !form.birthDate || !form.gender) {
       setErrorMessage("이름, 생년월일, 성별을 모두 입력해 주세요.");
       return;
@@ -227,6 +230,7 @@ export function AuthPage({ mode = "login", notice = "", onLogin, onSignup }) {
       <section className="command-board command-board--auth">
         <div className="auth-shell">
           <section className="auth-card">
+            {/* 로그인/회원가입/관리자 로그인은 하나의 카드 레이아웃 안에서만 전환된다. */}
             <div className="auth-switch">
               <a
                 href={buildQuery("login")}
