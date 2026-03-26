@@ -30,13 +30,28 @@ function formatMemberCode(value) {
   return String(parsedValue).padStart(2, "0");
 }
 
+function getUserRoles(user) {
+  if (Array.isArray(user.Roles) && user.Roles.length > 0) {
+    return user.Roles.filter((role) => role === "collector" || role === "admin");
+  }
+
+  if (user.Role === "admin") {
+    return ["admin"];
+  }
+
+  return ["collector"];
+}
+
 function buildCollectorSession(user, location) {
+  const roles = getUserRoles(user);
+
   return {
     userId: user.id,
     name: user.Name,
     birthDate: user.BirthDate,
     gender: user.Gender,
-    role: user.Role || "collector",
+    role: roles.includes("collector") ? "collector" : roles[0] || "collector",
+    roles,
     location,
     userNumber: user.UserNumber || 0,
     memberCode: user.MemberCode || formatMemberCode(user.UserNumber),
@@ -168,6 +183,7 @@ async function createCollectorUser({ name, birthDate, gender, consentAgreed }) {
     ConsentAgreed: Boolean(consentAgreed),
     ConsentAt: serverTimestamp(),
     Role: "collector",
+    Roles: ["collector"],
     UserNumber: 0,
     MemberCode: "00",
     AuthUid: auth.currentUser?.uid || "",
@@ -183,6 +199,7 @@ async function createCollectorUser({ name, birthDate, gender, consentAgreed }) {
     BirthDate: Number(birthDate),
     Gender: gender,
     Role: "collector",
+    Roles: ["collector"],
     UserNumber: numberInfo.userNumber,
     MemberCode: numberInfo.memberCode,
   };
@@ -236,6 +253,7 @@ export async function signUpUser({ name, birthDate, gender, consentAgreed }) {
         birthDate: createdUser.BirthDate,
         gender: createdUser.Gender,
         role: createdUser.Role,
+        roles: createdUser.Roles || ["collector"],
         userNumber: createdUser.UserNumber,
         memberCode: createdUser.MemberCode,
       },

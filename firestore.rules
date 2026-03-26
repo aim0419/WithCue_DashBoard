@@ -21,6 +21,13 @@ service cloud.firestore {
       return value in ["collector", "admin"];
     }
 
+    function isValidRolesArray(value) {
+      return value is list &&
+        value.size() > 0 &&
+        value.size() <= 2 &&
+        value.hasOnly(["collector", "admin"]);
+    }
+
     function hasOnlyKeys(allowedKeys) {
       return request.resource.data.keys().hasOnly(allowedKeys);
     }
@@ -38,6 +45,7 @@ service cloud.firestore {
           "ConsentAgreed",
           "ConsentAt",
           "Role",
+          "Roles",
           "UserNumber",
           "MemberCode",
           "AuthUid",
@@ -50,6 +58,8 @@ service cloud.firestore {
         isValidGender(request.resource.data.Gender) &&
         request.resource.data.ConsentAgreed is bool &&
         request.resource.data.Role == "collector" &&
+        isValidRolesArray(request.resource.data.Roles) &&
+        request.resource.data.Roles.hasOnly(["collector"]) &&
         request.resource.data.UserNumber is int &&
         isNonEmptyString(request.resource.data.MemberCode) &&
         request.resource.data.AuthUid is string;
@@ -65,6 +75,7 @@ service cloud.firestore {
         resource.data.ConsentAt == request.resource.data.ConsentAt &&
         resource.data.CreatedAt == request.resource.data.CreatedAt &&
         isValidRole(request.resource.data.Role) &&
+        isValidRolesArray(request.resource.data.Roles) &&
         request.resource.data.UserNumber is int &&
         isNonEmptyString(request.resource.data.MemberCode) &&
         request.resource.data.AuthUid is string;

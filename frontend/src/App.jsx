@@ -13,6 +13,22 @@ const AUTH_PROFILE_KEY = "withcue-auth-profile";
 const AUTH_ADMIN_SESSION_KEY = "withcue-admin-session";
 const AUTH_COLLECTOR_SESSION_KEY = "withcue-collector-session";
 
+function getSessionRoles(session) {
+  if (Array.isArray(session?.roles) && session.roles.length > 0) {
+    return session.roles;
+  }
+
+  if (session?.role === "admin") {
+    return ["admin"];
+  }
+
+  if (session?.role === "collector") {
+    return ["collector"];
+  }
+
+  return [];
+}
+
 function getViewFromLocation() {
   const params = new URLSearchParams(window.location.search);
   const view = params.get("view") || "login";
@@ -97,7 +113,7 @@ export default function App() {
       return;
     }
 
-    if (authSession.role !== "admin") {
+    if (!getSessionRoles(authSession).includes("admin")) {
       window.localStorage.removeItem(AUTH_ADMIN_SESSION_KEY);
       setAuthSession(null);
       setView("login");
@@ -114,7 +130,7 @@ export default function App() {
 
   useEffect(() => {
     // 수집 세션은 별도 화면으로 유지하고 세션이 없는데 collect 경로만 남아 있으면 로그인 화면으로 되돌리는 처리임.
-    if (authSession?.role === "admin") {
+    if (getSessionRoles(authSession).includes("admin")) {
       return;
     }
 
@@ -195,11 +211,19 @@ export default function App() {
       }
 
       const session = result.session;
+      const sessionRoles = getSessionRoles(session);
 
-      if (mode === "admin-login" && session.role !== "admin") {
+      if (mode === "admin-login" && !sessionRoles.includes("admin")) {
         return {
           ok: false,
           message: "관리자 대시보드는 관리자 계정으로만 접근 가능함.",
+        };
+      }
+
+      if (mode !== "admin-login" && !sessionRoles.includes("collector")) {
+        return {
+          ok: false,
+          message: "이 계정은 일반 수집 권한이 없음. 관리자 로그인을 사용해야 함.",
         };
       }
 
@@ -207,19 +231,28 @@ export default function App() {
       window.localStorage.setItem(AUTH_PROFILE_KEY, JSON.stringify(session));
       setAuthProfile(session);
 
-      if (session.role === "admin") {
-        window.localStorage.setItem(AUTH_ADMIN_SESSION_KEY, JSON.stringify(session));
+      if (mode === "admin-login") {
+        const adminSession = { ...session, role: "admin", roles: sessionRoles };
+        window.localStorage.setItem(AUTH_ADMIN_SESSION_KEY, JSON.stringify(adminSession));
         window.localStorage.removeItem(AUTH_COLLECTOR_SESSION_KEY);
         setCollectorSession(null);
-        setAuthSession(session);
+        setAuthSession(adminSession);
         setView("dashboard");
         setPageKey("main");
         navigateTo({ page: "main" });
       } else {
+        const collectorSessionData = {
+          ...session,
+          role: sessionRoles.includes("collector") ? "collector" : session.role,
+          roles: sessionRoles,
+        };
         window.localStorage.removeItem(AUTH_ADMIN_SESSION_KEY);
-        window.localStorage.setItem(AUTH_COLLECTOR_SESSION_KEY, JSON.stringify(session));
+        window.localStorage.setItem(
+          AUTH_COLLECTOR_SESSION_KEY,
+          JSON.stringify(collectorSessionData),
+        );
         setAuthSession(null);
-        setCollectorSession(session);
+        setCollectorSession(collectorSessionData);
         setView("collect");
         navigateTo({ view: "collect" });
       }
@@ -258,7 +291,7 @@ export default function App() {
 
   useEffect(() => {
     // 문서 제목을 현재 사용자 흐름에 맞춰 로그인, 수집, 대시보드 상태로 구분하는 처리임.
-    if (authSession?.role === "admin") {
+    if (getSessionRoles(authSession).includes("admin")) {
       document.title = `WithCue 관리자 대시보드 - ${currentPage.title}`;
       return;
     }
@@ -281,7 +314,7 @@ export default function App() {
     document.title = "WithCue 데이터 수집 - 로그인";
   }, [authSession, collectorSession, currentPage.title, view]);
 
-  if (authSession?.role === "admin") {
+  if (getSessionRoles(authSession).includes("admin")) {
     return (
       <main className="dashboard">
         <section className="command-board">
