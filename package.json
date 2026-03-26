@@ -10,7 +10,8 @@
     "serve": "vite",
     "locations:sync": "node ./backend/scripts/sync-locations.mjs",
     "firestore:list": "node ./backend/scripts/firestore-tools.mjs list",
-    "firestore:get:company": "node ./backend/scripts/firestore-tools.mjs get Company"
+    "firestore:get:company": "node ./backend/scripts/firestore-tools.mjs get Company",
+    "admin:add": "powershell -ExecutionPolicy Bypass -File ./scripts/add-admin-user.ps1"
   },
   "dependencies": {
     "firebase": "^12.11.0",
