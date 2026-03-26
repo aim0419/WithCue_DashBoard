@@ -9,6 +9,8 @@ import {
 } from "firebase/firestore";
 import { getFirebaseDb } from "./firebase-client.js";
 
+const FIRESTORE_REQUEST_TIMEOUT_MS = 12000;
+
 function normalizeName(name) {
   // 브라우저와 운영체제가 달라도 같은 이름으로 비교되도록 공백과 유니코드를 정규화한다.
   return String(name || "").trim().normalize("NFC");
@@ -38,6 +40,10 @@ function isSameUserIdentity(userData, { name, nameKey, birthDate, gender }) {
 function toFriendlyFirebaseError(error, fallbackMessage) {
   const code = error?.code || "";
 
+  if (code.includes("deadline-exceeded") || code.includes("timeout")) {
+    return "Firebase 응답이 지연되고 있습니다. 잠시 후 다시 시도해 주세요.";
+  }
+
   if (code.includes("permission-denied")) {
     return "Firebase 접근 권한이 없습니다. Firestore 규칙을 확인해 주세요.";
   }
@@ -53,17 +59,37 @@ function toFriendlyFirebaseError(error, fallbackMessage) {
   return error?.message || fallbackMessage;
 }
 
+function withTimeout(promise, timeoutMessage) {
+  return Promise.race([
+    promise,
+    new Promise((_, reject) => {
+      window.setTimeout(() => {
+        reject({
+          code: "timeout",
+          message: timeoutMessage,
+        });
+      }, FIRESTORE_REQUEST_TIMEOUT_MS);
+    }),
+  ]);
+}
+
 async function findUsersByName(db, normalizedName) {
   const usersRef = collection(db, "users");
   const usersQuery = query(usersRef, where("Name", "==", normalizedName), limit(10));
-  const snapshot = await getDocs(usersQuery);
+  const snapshot = await withTimeout(
+    getDocs(usersQuery),
+    "이름 기준 사용자 조회가 지연되고 있습니다.",
+  );
   return snapshot.docs;
 }
 
 async function findUsersByBirthDate(db, birthDate) {
   const usersRef = collection(db, "users");
   const usersQuery = query(usersRef, where("BirthDate", "==", birthDate), limit(20));
-  const snapshot = await getDocs(usersQuery);
+  const snapshot = await withTimeout(
+    getDocs(usersQuery),
+    "생년월일 기준 사용자 조회가 지연되고 있습니다.",
+  );
   return snapshot.docs;
 }
 
@@ -109,17 +135,20 @@ export async function signUpUser({ name, birthDate, gender, consentAgreed }) {
       };
     }
 
-    const createdUser = await addDoc(collection(db, "users"), {
-      // 관리자 승격은 콘솔에서 Role 값을 바꾸는 방식으로 운영한다.
-      Name: identity.name,
-      BirthDate: identity.birthDate,
-      Gender: identity.gender,
-      ConsentAgreed: Boolean(consentAgreed),
-      ConsentAt: serverTimestamp(),
-      Role: "collector",
-      CreatedAt: serverTimestamp(),
-      UpdatedAt: serverTimestamp(),
-    });
+    const createdUser = await withTimeout(
+      addDoc(collection(db, "users"), {
+        // 관리자 승격은 콘솔에서 Role 값을 바꾸는 방식으로 운영한다.
+        Name: identity.name,
+        BirthDate: identity.birthDate,
+        Gender: identity.gender,
+        ConsentAgreed: Boolean(consentAgreed),
+        ConsentAt: serverTimestamp(),
+        Role: "collector",
+        CreatedAt: serverTimestamp(),
+        UpdatedAt: serverTimestamp(),
+      }),
+      "회원가입 저장 요청이 지연되고 있습니다.",
+    );
 
     return {
       ok: true,
