@@ -188,7 +188,7 @@ async function createCollectorUser({ name, birthDate, gender, consentAgreed }) {
   };
 }
 
-// 익명 인증 UID를 사용자 문서와 연결해 규칙 조건을 맞추는 단계임.
+// 익명 인증 UID 연결은 보조 정보이므로 실패해도 로그인은 계속 허용함.
 async function updateCollectorAuthUidIfNeeded(user) {
   const auth = getFirebaseAuth();
   const currentUid = auth.currentUser?.uid || "";
@@ -271,7 +271,11 @@ export async function loginUser({ name, birthDate, gender, location }) {
       "회원 번호 확인이 지연되고 있습니다.",
     );
 
-    await updateCollectorAuthUidIfNeeded(matchedUser);
+    try {
+      await updateCollectorAuthUidIfNeeded(matchedUser);
+    } catch {
+      // 보조 UID 갱신 실패가 로그인 자체를 막지 않게 둠.
+    }
 
     return {
       ok: true,
