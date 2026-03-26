@@ -1,5 +1,11 @@
-import { httpsCallable } from "firebase/functions";
-import { getFirebaseFunctions, waitForFirebaseAuthReady } from "./firebase-client.js";
+import {
+  addDoc,
+  collection,
+  doc,
+  runTransaction,
+  serverTimestamp,
+} from "firebase/firestore";
+import { getFirebaseDb, waitForFirebaseAuthReady } from "./firebase-client.js";
 
 export const LOCATION_META = {
   aim: {
@@ -12,14 +18,14 @@ export const LOCATION_META = {
   hyocheon: {
     docId: "HyoCheon",
     name: "효천점",
-    displayName: "이끌림(효천점)",
+    displayName: "갤러리 효천점",
     siteCode: "H",
     chipLabel: "효천점",
   },
   jangdeok: {
     docId: "Jangdeok",
     name: "장덕점",
-    displayName: "이끌림(장덕점)",
+    displayName: "갤러리 장덕점",
     siteCode: "J",
     chipLabel: "장덕점",
   },
@@ -57,19 +63,15 @@ function formatMemberCode(value) {
   return String(parsedValue).padStart(2, "0");
 }
 
-function getCallable(name) {
-  return httpsCallable(getFirebaseFunctions(), name);
-}
-
 function toFriendlyCollectionError(error, fallbackMessage) {
   const code = error?.code || "";
 
   if (code.includes("unauthenticated")) {
-    return "인증 상태가 확인되지 않았음. 다시 로그인 후 시도해야 함.";
+    return "인증 상태가 확인되지 않았음. 다시 로그인해야 함.";
   }
 
   if (code.includes("permission-denied")) {
-    return "수집 처리 권한이 없음. 관리자 설정 확인이 필요함.";
+    return "수집 처리 권한이 없음. Firebase 규칙을 확인해야 함.";
   }
 
   if (code.includes("deadline-exceeded") || code.includes("timeout")) {
@@ -80,17 +82,51 @@ function toFriendlyCollectionError(error, fallbackMessage) {
 }
 
 export async function ensureCollectorConsentAtLocation(session) {
-  // 동의 집계 반영을 브라우저 직접 쓰기 대신 서버 함수로 넘겨 중복 증가를 서버에서 보정하는 구조임.
   try {
     await waitForFirebaseAuthReady();
-    const ensureCollectorLocationAccess = getCallable("ensureCollectorLocationAccess");
-    const { data } = await ensureCollectorLocationAccess({
-      location: session?.location || "aim",
+
+    const db = getFirebaseDb();
+    const locationMeta = getLocationMeta(session?.location);
+    const participantRef = doc(
+      db,
+      "locationParticipants",
+      `${session?.userId || "unknown"}_${locationMeta.docId}`,
+    );
+
+    const result = await runTransaction(db, async (transaction) => {
+      const snapshot = await transaction.get(participantRef);
+
+      if (snapshot.exists()) {
+        return {
+          created: false,
+          id: participantRef.id,
+        };
+      }
+
+      transaction.set(participantRef, {
+        UserId: session?.userId || "",
+        UserNumber: Number(session?.userNumber || 0),
+        MemberCode: session?.memberCode || formatMemberCode(session?.userNumber),
+        Name: session?.name || "",
+        BirthDate: Number(session?.birthDate || 0),
+        Gender: session?.gender || "",
+        Location: session?.location || "aim",
+        LocationDocId: locationMeta.docId,
+        SiteCode: locationMeta.siteCode,
+        CreatedAt: serverTimestamp(),
+        UpdatedAt: serverTimestamp(),
+      });
+
+      return {
+        created: true,
+        id: participantRef.id,
+      };
     });
-    return data;
+
+    return result;
   } catch (error) {
     throw new Error(
-      toFriendlyCollectionError(error, "지점 접근 권한 준비 중 오류가 발생했음."),
+      toFriendlyCollectionError(error, "지점 동의 처리 중 오류가 발생했음."),
     );
   }
 }
@@ -103,19 +139,39 @@ export async function saveCollectionRecording({
   size,
   durationMs,
 }) {
-  // 실제 집계 증가와 세션 기록은 callable function에서 처리하고 브라우저는 메타데이터만 전달하는 구조임.
   try {
     await waitForFirebaseAuthReady();
-    const recordCollectionSession = getCallable("recordCollectionSession");
-    const { data } = await recordCollectionSession({
-      location: session?.location || "aim",
-      bodyPartKey,
-      fileName,
-      mimeType,
-      size: Number(size || 0),
-      durationMs: Number(durationMs || 0),
+
+    const db = getFirebaseDb();
+    const locationMeta = getLocationMeta(session?.location);
+    const bodyPartOption =
+      BODY_PART_OPTIONS.find((option) => option.key === bodyPartKey) || BODY_PART_OPTIONS[0];
+    const bodyPartCode = BODY_PART_CODE_MAP[bodyPartKey] || "00";
+
+    const sessionDoc = await addDoc(collection(db, "collectionSessions"), {
+      UserId: session?.userId || "",
+      UserNumber: Number(session?.userNumber || 0),
+      MemberCode: session?.memberCode || formatMemberCode(session?.userNumber),
+      Name: session?.name || "",
+      BirthDate: Number(session?.birthDate || 0),
+      Gender: session?.gender || "",
+      Location: session?.location || "aim",
+      LocationDocId: locationMeta.docId,
+      SiteCode: locationMeta.siteCode,
+      BodyPart: bodyPartKey,
+      BodyPartCode: bodyPartCode,
+      BodyPartLabel: bodyPartOption.label,
+      FileName: fileName,
+      MimeType: mimeType,
+      FileSize: Number(size || 0),
+      DurationMs: Number(durationMs || 0),
+      CreatedAt: serverTimestamp(),
     });
-    return data;
+
+    return {
+      ok: true,
+      sessionId: sessionDoc.id,
+    };
   } catch (error) {
     throw new Error(
       toFriendlyCollectionError(error, "녹화 기록 저장 중 오류가 발생했음."),

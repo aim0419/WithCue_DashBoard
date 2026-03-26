@@ -5,32 +5,176 @@ service cloud.firestore {
       return request.auth != null;
     }
 
-    function isAdmin() {
-      return isSignedIn() && request.auth.token.role == "admin";
+    function isNonEmptyString(value) {
+      return value is string && value.size() > 0;
     }
 
-    function isOwner() {
-      return isSignedIn() && resource.data.AuthUid == request.auth.uid;
+    function isValidGender(value) {
+      return value in ["male", "female"];
+    }
+
+    function isValidBirthDate(value) {
+      return value is int && value >= 19000101 && value <= 20991231;
+    }
+
+    function isValidRole(value) {
+      return value in ["collector", "admin"];
+    }
+
+    function hasOnlyKeys(allowedKeys) {
+      return request.resource.data.keys().hasOnly(allowedKeys);
     }
 
     match /users/{userId} {
-      allow read: if isAdmin() || isOwner();
-      allow write: if false;
-    }
+      allow read: if isSignedIn();
 
-    match /locations/{locationId} {
-      allow read: if isAdmin();
-      allow write: if false;
+      allow create: if
+        isSignedIn() &&
+        hasOnlyKeys([
+          "Name",
+          "NameNormalized",
+          "BirthDate",
+          "Gender",
+          "ConsentAgreed",
+          "ConsentAt",
+          "Role",
+          "UserNumber",
+          "MemberCode",
+          "AuthUid",
+          "CreatedAt",
+          "UpdatedAt"
+        ]) &&
+        isNonEmptyString(request.resource.data.Name) &&
+        isNonEmptyString(request.resource.data.NameNormalized) &&
+        isValidBirthDate(request.resource.data.BirthDate) &&
+        isValidGender(request.resource.data.Gender) &&
+        request.resource.data.ConsentAgreed is bool &&
+        request.resource.data.Role == "collector" &&
+        request.resource.data.UserNumber is int &&
+        isNonEmptyString(request.resource.data.MemberCode) &&
+        request.resource.data.AuthUid is string;
+
+      allow update: if
+        isSignedIn() &&
+        resource.data.Role == request.resource.data.Role &&
+        resource.data.Name == request.resource.data.Name &&
+        resource.data.NameNormalized == request.resource.data.NameNormalized &&
+        resource.data.BirthDate == request.resource.data.BirthDate &&
+        resource.data.Gender == request.resource.data.Gender &&
+        resource.data.ConsentAgreed == request.resource.data.ConsentAgreed &&
+        resource.data.ConsentAt == request.resource.data.ConsentAt &&
+        resource.data.CreatedAt == request.resource.data.CreatedAt &&
+        isValidRole(request.resource.data.Role) &&
+        request.resource.data.UserNumber is int &&
+        isNonEmptyString(request.resource.data.MemberCode) &&
+        request.resource.data.AuthUid is string;
+
+      allow delete: if false;
     }
 
     match /locationParticipants/{documentId} {
-      allow read: if isAdmin();
-      allow write: if false;
+      allow read: if isSignedIn();
+
+      allow create: if
+        isSignedIn() &&
+        hasOnlyKeys([
+          "UserId",
+          "UserNumber",
+          "MemberCode",
+          "Name",
+          "BirthDate",
+          "Gender",
+          "Location",
+          "LocationDocId",
+          "SiteCode",
+          "CreatedAt",
+          "UpdatedAt"
+        ]) &&
+        isNonEmptyString(request.resource.data.UserId) &&
+        request.resource.data.UserNumber is int &&
+        isNonEmptyString(request.resource.data.MemberCode) &&
+        isNonEmptyString(request.resource.data.Name) &&
+        isValidBirthDate(request.resource.data.BirthDate) &&
+        isValidGender(request.resource.data.Gender) &&
+        isNonEmptyString(request.resource.data.Location) &&
+        isNonEmptyString(request.resource.data.LocationDocId) &&
+        isNonEmptyString(request.resource.data.SiteCode);
+
+      allow update, delete: if false;
     }
 
     match /collectionSessions/{documentId} {
-      allow read: if isAdmin();
+      allow read: if isSignedIn();
+
+      allow create: if
+        isSignedIn() &&
+        hasOnlyKeys([
+          "UserId",
+          "UserNumber",
+          "MemberCode",
+          "Name",
+          "BirthDate",
+          "Gender",
+          "Location",
+          "LocationDocId",
+          "SiteCode",
+          "BodyPart",
+          "BodyPartCode",
+          "BodyPartLabel",
+          "FileName",
+          "MimeType",
+          "FileSize",
+          "DurationMs",
+          "CreatedAt"
+        ]) &&
+        isNonEmptyString(request.resource.data.UserId) &&
+        request.resource.data.UserNumber is int &&
+        isNonEmptyString(request.resource.data.MemberCode) &&
+        isNonEmptyString(request.resource.data.Name) &&
+        isValidBirthDate(request.resource.data.BirthDate) &&
+        isValidGender(request.resource.data.Gender) &&
+        isNonEmptyString(request.resource.data.Location) &&
+        isNonEmptyString(request.resource.data.LocationDocId) &&
+        isNonEmptyString(request.resource.data.SiteCode) &&
+        isNonEmptyString(request.resource.data.BodyPart) &&
+        isNonEmptyString(request.resource.data.BodyPartCode) &&
+        isNonEmptyString(request.resource.data.BodyPartLabel) &&
+        isNonEmptyString(request.resource.data.FileName) &&
+        isNonEmptyString(request.resource.data.MimeType) &&
+        request.resource.data.FileSize is int &&
+        request.resource.data.DurationMs is int;
+
+      allow update, delete: if false;
+    }
+
+    match /systemCounters/{documentId} {
+      allow read: if isSignedIn();
+
+      allow create: if
+        isSignedIn() &&
+        documentId == "users" &&
+        hasOnlyKeys(["NextUserNumber"]) &&
+        request.resource.data.NextUserNumber is int &&
+        request.resource.data.NextUserNumber >= 1;
+
+      allow update: if
+        isSignedIn() &&
+        documentId == "users" &&
+        hasOnlyKeys(["NextUserNumber"]) &&
+        request.resource.data.NextUserNumber is int &&
+        resource.data.NextUserNumber is int &&
+        request.resource.data.NextUserNumber == resource.data.NextUserNumber + 1;
+
+      allow delete: if false;
+    }
+
+    match /locations/{documentId} {
+      allow read: if isSignedIn();
       allow write: if false;
+    }
+
+    match /{document=**} {
+      allow read, write: if false;
     }
   }
 }
