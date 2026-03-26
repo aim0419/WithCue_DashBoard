@@ -2,19 +2,23 @@ import { useEffect, useMemo, useState } from "react";
 import { AuthPage } from "./components/AuthPage.jsx";
 import { BodyMapPanel } from "./components/BodyMapPanel.jsx";
 import { CategoryCard } from "./components/CategoryCard.jsx";
+import { CollectionPage } from "./components/CollectionPage.jsx";
 import { SummaryPanel } from "./components/SummaryPanel.jsx";
 import { categoryPages, pageMeta } from "./data/dashboard-meta.js";
 import { useDashboardData } from "./hooks/useDashboardData.js";
 import { loginUser, signUpUser } from "./lib/auth-service.js";
 
-// 로컬 저장소에는 화면 복원에 필요한 최소 인증 정보만 보관한다.
+// 인증 정보를 브라우저 저장소에 나눠 저장해 관리자 세션과 수집 세션을 분리 유지함.
 const AUTH_PROFILE_KEY = "withcue-auth-profile";
 const AUTH_ADMIN_SESSION_KEY = "withcue-admin-session";
+const AUTH_COLLECTOR_SESSION_KEY = "withcue-collector-session";
 
 function getViewFromLocation() {
   const params = new URLSearchParams(window.location.search);
   const view = params.get("view") || "login";
-  return ["dashboard", "login", "signup", "admin-login"].includes(view) ? view : "login";
+  return ["dashboard", "login", "signup", "admin-login", "collect"].includes(view)
+    ? view
+    : "login";
 }
 
 function getPageKeyFromLocation() {
@@ -33,33 +37,12 @@ function readJsonFromStorage(key) {
 }
 
 function navigateTo(paramsObject) {
-  // 내부 이동은 전체 새로고침 없이 주소만 바꿔서 현재 상태를 유지한다.
   const params = new URLSearchParams(paramsObject);
   window.history.replaceState({}, "", `/?${params.toString()}`);
 }
 
-function buildCollectionAppUrl(session) {
-  // 수집 사용자는 촬영에 필요한 최소 정보만 들고 로컬 Flask 앱으로 이동한다.
-  const params = new URLSearchParams();
-  params.set("site", session?.location || "aim");
-
-  if (session?.name) {
-    params.set("name", session.name);
-  }
-
-  if (session?.birthDate) {
-    params.set("birthDate", String(session.birthDate));
-  }
-
-  if (session?.gender) {
-    params.set("gender", session.gender);
-  }
-
-  return `http://127.0.0.1:5000/?${params.toString()}`;
-}
-
 function sumBodyParts(locations) {
-  // 바디맵은 항상 하나의 합산 객체를 받으므로 현재 페이지 기준 수치를 먼저 모은다.
+  // 대시보드 바디맵은 현재 페이지 기준 위치 문서들을 먼저 합산한 뒤 렌더링함.
   return locations.reduce(
     (totals, location) => {
       totals.Neck += Number(location.BodyParts?.Neck || 0);
@@ -86,11 +69,14 @@ export default function App() {
   const [pageKey, setPageKey] = useState(getPageKeyFromLocation());
   const [authProfile, setAuthProfile] = useState(() => readJsonFromStorage(AUTH_PROFILE_KEY));
   const [authSession, setAuthSession] = useState(() => readJsonFromStorage(AUTH_ADMIN_SESSION_KEY));
+  const [collectorSession, setCollectorSession] = useState(() =>
+    readJsonFromStorage(AUTH_COLLECTOR_SESSION_KEY),
+  );
   const [authNotice, setAuthNotice] = useState("");
   const { data, loading } = useDashboardData();
 
   useEffect(() => {
-    // 브라우저 뒤로가기나 주소 직접 수정이 있어도 React 상태를 같은 위치로 맞춘다.
+    // 브라우저 뒤로가기나 수동 주소 변경이 있어도 React 상태를 현재 URL 기준으로 다시 동기화함.
     const handleLocationChange = () => {
       setView(getViewFromLocation());
       setPageKey(getPageKeyFromLocation());
@@ -106,12 +92,8 @@ export default function App() {
   }, []);
 
   useEffect(() => {
-    // 대시보드 경로에는 관리자 세션만 남아 있도록 제한한다.
+    // 관리자 세션이 살아 있으면 인증 화면 대신 대시보드로 고정함.
     if (!authSession) {
-      if (view === "dashboard") {
-        setView("login");
-        navigateTo({ view: "login" });
-      }
       return;
     }
 
@@ -123,11 +105,30 @@ export default function App() {
       return;
     }
 
-    if (view === "login" || view === "signup" || view === "admin-login") {
+    if (["login", "signup", "admin-login", "collect"].includes(view)) {
       setView("dashboard");
+      setPageKey("main");
       navigateTo({ page: "main" });
     }
   }, [authSession, view]);
+
+  useEffect(() => {
+    // 수집 세션은 별도 화면으로 유지하고 세션이 없는데 collect 경로만 남아 있으면 로그인 화면으로 되돌림.
+    if (authSession?.role === "admin") {
+      return;
+    }
+
+    if (!collectorSession && view === "collect") {
+      setView("login");
+      navigateTo({ view: "login" });
+      return;
+    }
+
+    if (collectorSession && ["login", "signup", "admin-login"].includes(view)) {
+      setView("collect");
+      navigateTo({ view: "collect" });
+    }
+  }, [authSession, collectorSession, view]);
 
   const dashboardData = data ?? {
     source: "loading",
@@ -162,7 +163,6 @@ export default function App() {
 
   async function handleSignup(form) {
     try {
-      // 회원가입은 Firestore에 저장한 뒤 일반 로그인 화면으로 다시 돌려보낸다.
       const result = await signUpUser(form);
 
       if (!result.ok) {
@@ -172,21 +172,20 @@ export default function App() {
       const profile = result.profile;
       window.localStorage.setItem(AUTH_PROFILE_KEY, JSON.stringify(profile));
       setAuthProfile(profile);
-      setAuthNotice(result.message || "회원가입이 완료되었습니다. 같은 정보로 로그인해 주세요.");
+      setAuthNotice(result.message || "회원가입이 완료되었음. 같은 정보로 로그인하면 수집 화면으로 이동함.");
       setView("login");
       navigateTo({ view: "login" });
       return { ok: true };
     } catch (error) {
       return {
         ok: false,
-        message: error?.message || "회원가입 중 오류가 발생했습니다.",
+        message: error?.message || "회원가입 처리 중 예기치 못한 오류가 발생했음.",
       };
     }
   }
 
   async function handleLogin(form, mode) {
     try {
-      // 로그인은 Firestore 기준으로 확인해서 배포 환경에서도 로컬 가입 기록에 의존하지 않는다.
       const result = await loginUser(form);
 
       if (!result.ok) {
@@ -198,116 +197,135 @@ export default function App() {
       if (mode === "admin-login" && session.role !== "admin") {
         return {
           ok: false,
-          message: "관리자 계정만 대시보드에 접근할 수 있습니다.",
+          message: "관리자 대시보드는 관리자 계정으로만 접근 가능함.",
         };
       }
 
       setAuthNotice("");
+      window.localStorage.setItem(AUTH_PROFILE_KEY, JSON.stringify(session));
+      setAuthProfile(session);
 
       if (session.role === "admin") {
         window.localStorage.setItem(AUTH_ADMIN_SESSION_KEY, JSON.stringify(session));
+        window.localStorage.removeItem(AUTH_COLLECTOR_SESSION_KEY);
+        setCollectorSession(null);
         setAuthSession(session);
         setView("dashboard");
         setPageKey("main");
         navigateTo({ page: "main" });
       } else {
-        // 수집 사용자는 SPA에 머물지 않고 곧바로 로컬 촬영 페이지로 이동한다.
         window.localStorage.removeItem(AUTH_ADMIN_SESSION_KEY);
+        window.localStorage.setItem(AUTH_COLLECTOR_SESSION_KEY, JSON.stringify(session));
         setAuthSession(null);
-        setView("login");
-        navigateTo({ view: "login" });
-        window.location.assign(buildCollectionAppUrl(session));
+        setCollectorSession(session);
+        setView("collect");
+        navigateTo({ view: "collect" });
       }
 
       return { ok: true };
     } catch (error) {
       return {
         ok: false,
-        message: error?.message || "로그인 중 오류가 발생했습니다.",
+        message: error?.message || "로그인 처리 중 예기치 못한 오류가 발생했음.",
       };
     }
   }
 
   function handleNavigatePage(nextPageKey) {
-    // 카테고리 전환은 즉시 반응해야 하고 인증 상태도 그대로 유지되어야 한다.
+    // 카테고리 전환은 새로고침 없이 URL과 화면 상태를 같이 갱신함.
     setPageKey(nextPageKey);
     setView("dashboard");
     navigateTo({ page: nextPageKey });
   }
 
-  function handleLogout() {
+  function handleAdminLogout() {
     window.localStorage.removeItem(AUTH_ADMIN_SESSION_KEY);
     setAuthSession(null);
     setView("login");
     navigateTo({ view: "login" });
   }
 
+  function handleCollectorLogout() {
+    window.localStorage.removeItem(AUTH_COLLECTOR_SESSION_KEY);
+    setCollectorSession(null);
+    setView("login");
+    navigateTo({ view: "login" });
+  }
+
   useEffect(() => {
-    // 로그인, 회원가입, 관리자 로그인, 대시보드별로 탭 제목을 읽기 쉽게 맞춘다.
-    if (!authSession) {
-      if (view === "login") {
-        document.title = "WithCue 관리자 대시보드 - 로그인";
-        return;
-      }
-
-      if (view === "signup") {
-        document.title = "WithCue 관리자 대시보드 - 회원가입";
-        return;
-      }
-
-      if (view === "admin-login") {
-        document.title = "WithCue 관리자 대시보드 - 관리자 로그인";
-        return;
-      }
+    // 문서 제목은 현재 사용자 흐름에 맞춰 로그인, 수집, 대시보드 상태를 구분해 표기함.
+    if (authSession?.role === "admin") {
+      document.title = `WithCue 관리자 대시보드 - ${currentPage.title}`;
+      return;
     }
 
-    document.title = `WithCue 관리자 대시보드 - ${currentPage.title}`;
-  }, [authSession, currentPage.title, view]);
+    if (collectorSession) {
+      document.title = "WithCue 데이터 수집";
+      return;
+    }
 
-  if (!authSession) {
+    if (view === "signup") {
+      document.title = "WithCue 데이터 수집 - 회원가입";
+      return;
+    }
+
+    if (view === "admin-login") {
+      document.title = "WithCue 관리자 대시보드 - 관리자 로그인";
+      return;
+    }
+
+    document.title = "WithCue 데이터 수집 - 로그인";
+  }, [authSession, collectorSession, currentPage.title, view]);
+
+  if (authSession?.role === "admin") {
     return (
-      <AuthPage
-        mode={view}
-        notice={authNotice}
-        onLogin={handleLogin}
-        onSignup={handleSignup}
+      <main className="dashboard">
+        <section className="command-board">
+          <header className="board-header">
+            <div className="board-title board-title--compact">
+              <p className="hero__description visually-hidden">{currentPage.description}</p>
+            </div>
+            <button type="button" className="dashboard-logout" onClick={handleAdminLogout}>
+              로그아웃
+            </button>
+          </header>
+
+          <section className="board-layout">
+            <aside className="info-panel">
+              <SummaryPanel
+                pageKey={pageKey}
+                displayedSessionCount={displayedSessionCount}
+                displayedConsentCount={displayedConsentCount}
+                locations={filteredLocations}
+                data={dashboardData}
+              />
+              <CategoryCard pageKey={pageKey} onNavigatePage={handleNavigatePage} />
+            </aside>
+
+            <BodyMapPanel bodyParts={displayedBodyParts} />
+          </section>
+
+          {loading ? (
+            <div className="visually-hidden" aria-live="polite">
+              데이터를 불러오는 중임.
+            </div>
+          ) : null}
+        </section>
+      </main>
+    );
+  }
+
+  if (collectorSession) {
+    return (
+      <CollectionPage
+        session={collectorSession}
+        profile={authProfile}
+        onLogout={handleCollectorLogout}
       />
     );
   }
 
   return (
-    <main className="dashboard">
-      <section className="command-board">
-        <header className="board-header">
-          <div className="board-title board-title--compact">
-            <p className="hero__description visually-hidden">{currentPage.description}</p>
-          </div>
-          <button type="button" className="dashboard-logout" onClick={handleLogout}>
-            로그아웃
-          </button>
-        </header>
-
-        <section className="board-layout">
-          <aside className="info-panel">
-            <SummaryPanel
-              pageKey={pageKey}
-              displayedSessionCount={displayedSessionCount}
-              displayedConsentCount={displayedConsentCount}
-              locations={filteredLocations}
-              data={dashboardData}
-            />
-            <CategoryCard pageKey={pageKey} onNavigatePage={handleNavigatePage} />
-          </aside>
-
-          <BodyMapPanel bodyParts={displayedBodyParts} />
-        </section>
-
-        {loading ? (
-          <div className="visually-hidden" aria-live="polite">
-            데이터를 불러오는 중입니다.
-          </div>
-        ) : null}
-      </section>
-    </main>
+    <AuthPage mode={view} notice={authNotice} onLogin={handleLogin} onSignup={handleSignup} />
   );
 }

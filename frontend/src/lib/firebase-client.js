@@ -2,21 +2,10 @@ import { getApp, getApps, initializeApp } from "firebase/app";
 import { getFirestore } from "firebase/firestore/lite";
 import { firebaseConfig, hasFirebaseConfig } from "../../config/firebase-config.js";
 
-let hasLoggedFirebaseConfig = false;
-
 export function getFirebaseApp() {
   if (!hasFirebaseConfig()) {
-    // env 누락 시 초기화 단계에서 바로 원인을 드러내도록 명시적으로 실패시킨다.
+    // 배포 환경 변수가 비어 있으면 초기화 단계에서 즉시 실패시켜 설정 누락을 빠르게 드러내는 처리임.
     throw new Error("Firebase environment variables are missing.");
-  }
-
-  if (!hasLoggedFirebaseConfig && typeof window !== "undefined") {
-    console.info("[WithCue Firebase]", {
-      projectId: firebaseConfig.projectId,
-      authDomain: firebaseConfig.authDomain,
-      storageBucket: firebaseConfig.storageBucket,
-    });
-    hasLoggedFirebaseConfig = true;
   }
 
   return getApps().length ? getApp() : initializeApp(firebaseConfig);
