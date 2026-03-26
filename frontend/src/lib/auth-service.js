@@ -47,28 +47,29 @@ function toFriendlyFirebaseError(error, fallbackMessage) {
   const code = error?.code || "";
 
   if (code.includes("deadline-exceeded") || code.includes("timeout")) {
-    return "Firebase 응답이 지연되고 있음. 잠시 후 다시 시도해야 함.";
+    return "Firebase 응답이 지연되고 있습니다. 잠시 후 다시 시도해 주세요.";
   }
 
   if (code.includes("permission-denied")) {
-    return "Firebase 접근 권한이 없음. Firestore 규칙을 확인해야 함.";
+    return "Firebase 접근 권한이 없습니다. Firestore 규칙을 확인해 주세요.";
   }
 
   if (code.includes("unauthenticated")) {
-    return "인증 상태가 만료되었음. 다시 로그인해야 함.";
+    return "인증 상태가 만료되었습니다. 다시 로그인해 주세요.";
   }
 
   if (code.includes("network-request-failed")) {
-    return "네트워크 연결 상태 확인이 필요함.";
+    return "네트워크 연결 상태를 확인해 주세요.";
   }
 
   if (code.includes("already-exists")) {
-    return "이미 회원가입한 사용자 정보임.";
+    return "이미 가입된 사용자 정보입니다.";
   }
 
   return error?.message || fallbackMessage;
 }
 
+// Firestore 지연 시 무한 대기를 막기 위한 보호 로직임.
 function withTimeout(promise, timeoutMessage) {
   return Promise.race([
     promise,
@@ -104,6 +105,7 @@ async function findUsersByIdentity({ name, birthDate, gender }) {
     );
 }
 
+// 기존 사용자 번호가 없으면 카운터 문서를 이용해 새 번호를 발급함.
 async function ensureUserNumber(userId) {
   const db = getFirebaseDb();
   const userRef = doc(db, "users", userId);
@@ -113,7 +115,7 @@ async function ensureUserNumber(userId) {
     const userSnapshot = await transaction.get(userRef);
 
     if (!userSnapshot.exists()) {
-      throw new Error("회원 문서를 찾을 수 없음.");
+      throw new Error("회원 문서를 찾을 수 없습니다.");
     }
 
     const user = userSnapshot.data();
@@ -151,6 +153,7 @@ async function ensureUserNumber(userId) {
   });
 }
 
+// 회원가입 시 최소 필드를 먼저 만들고 번호를 뒤이어 발급함.
 async function createCollectorUser({ name, birthDate, gender, consentAgreed }) {
   const db = getFirebaseDb();
   const auth = getFirebaseAuth();
@@ -185,6 +188,7 @@ async function createCollectorUser({ name, birthDate, gender, consentAgreed }) {
   };
 }
 
+// 익명 인증 UID를 사용자 문서와 연결해 규칙 조건을 맞추는 단계임.
 async function updateCollectorAuthUidIfNeeded(user) {
   const auth = getFirebaseAuth();
   const currentUid = auth.currentUser?.uid || "";
@@ -209,19 +213,19 @@ export async function signUpUser({ name, birthDate, gender, consentAgreed }) {
 
     const existingUsers = await withTimeout(
       findUsersByIdentity({ name, birthDate, gender }),
-      "회원가입 요청 응답이 지연되고 있음.",
+      "회원가입 요청 응답이 지연되고 있습니다.",
     );
 
     if (existingUsers.length > 0) {
       return {
         ok: false,
-        message: "이미 회원가입한 사용자 정보임.",
+        message: "이미 가입된 사용자 정보입니다.",
       };
     }
 
     const createdUser = await withTimeout(
       createCollectorUser({ name, birthDate, gender, consentAgreed }),
-      "회원가입 요청 응답이 지연되고 있음.",
+      "회원가입 요청 응답이 지연되고 있습니다.",
     );
 
     return {
@@ -235,12 +239,12 @@ export async function signUpUser({ name, birthDate, gender, consentAgreed }) {
         userNumber: createdUser.UserNumber,
         memberCode: createdUser.MemberCode,
       },
-      message: "회원가입이 완료되었음. 같은 정보로 로그인하면 수집 화면으로 이동함.",
+      message: "회원가입이 완료되었습니다. 같은 정보로 로그인해 주세요.",
     };
   } catch (error) {
     return {
       ok: false,
-      message: toFriendlyFirebaseError(error, "회원가입 처리 중 알 수 없는 오류가 발생했음."),
+      message: toFriendlyFirebaseError(error, "회원가입 처리 중 알 수 없는 오류가 발생했습니다."),
     };
   }
 }
@@ -251,20 +255,20 @@ export async function loginUser({ name, birthDate, gender, location }) {
 
     const matchedUsers = await withTimeout(
       findUsersByIdentity({ name, birthDate, gender }),
-      "로그인 요청 응답이 지연되고 있음.",
+      "로그인 요청 응답이 지연되고 있습니다.",
     );
 
     if (matchedUsers.length === 0) {
       return {
         ok: false,
-        message: "회원가입한 정보와 일치하는 사용자를 찾을 수 없음.",
+        message: "회원가입한 정보와 일치하는 사용자를 찾을 수 없습니다.",
       };
     }
 
     const matchedUser = matchedUsers[0];
     const numberInfo = await withTimeout(
       ensureUserNumber(matchedUser.id),
-      "회원 번호 확인이 지연되고 있음.",
+      "회원 번호 확인이 지연되고 있습니다.",
     );
 
     await updateCollectorAuthUidIfNeeded(matchedUser);
@@ -283,7 +287,7 @@ export async function loginUser({ name, birthDate, gender, location }) {
   } catch (error) {
     return {
       ok: false,
-      message: toFriendlyFirebaseError(error, "로그인 처리 중 알 수 없는 오류가 발생했음."),
+      message: toFriendlyFirebaseError(error, "로그인 처리 중 알 수 없는 오류가 발생했습니다."),
     };
   }
 }

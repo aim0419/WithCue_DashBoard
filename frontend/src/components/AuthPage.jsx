@@ -12,8 +12,8 @@ const locationOptions = [
   { value: "aim", label: "AIM" },
 ];
 
+// 현재 화면 상태만 바꾸고 나머지 쿼리는 최대한 유지함.
 function buildQuery(nextView) {
-  // 인증 화면 전환 시에는 view만 바꾸고 대시보드 page 파라미터는 제거한다.
   const params = new URLSearchParams(window.location.search);
   params.set("view", nextView);
   params.delete("page");
@@ -62,15 +62,14 @@ function ConsentField({ agreed, onChange }) {
         <div className="auth-consent__box">
           <p className="auth-consent__title">개인정보 수집 및 이용 안내</p>
           <p className="auth-consent__text">
-            이름, 생년월일, 성별은 데이터 수집 참여 여부 확인과 수집 기록 관리 목적으로만
-            사용합니다.
+            이름, 생년월일, 성별은 데이터 수집 참여 여부 확인과 기록 관리 목적으로만 사용합니다.
           </p>
           <p className="auth-consent__text">
-            수집된 정보는 연구 및 운영 목적에 한해 사용하며, 촬영 데이터와 참여자 정보를
-            연결하는 식별 정보로만 관리됩니다.
+            수집된 정보는 연구 및 운영 목적에 한해 사용하며, 촬영 데이터와 참여자 정보를 연결하는
+            식별 정보로만 관리합니다.
           </p>
           <p className="auth-consent__text">
-            동의하지 않으면 회원가입과 이후 수집 절차를 진행할 수 없습니다.
+            동의하지 않으면 회원가입 이후 수집 절차를 진행할 수 없습니다.
           </p>
         </div>
 
@@ -110,8 +109,8 @@ function AuthForm({ mode, onLogin, onSignup }) {
     return isLogin ? "로그인" : "회원가입";
   }, [isAdminLogin, isLogin]);
 
+  // 입력 중인 날짜를 제출 형식과 분리해 안내함.
   const birthDatePreview = useMemo(() => {
-    // 입력 중에는 사람이 읽는 날짜를 보여주고, 제출 시에는 정규화된 숫자를 사용한다.
     const result = normalizeBirthDateInput(form.birthDate);
     return result.ok ? result.display : "";
   }, [form.birthDate]);
@@ -124,7 +123,7 @@ function AuthForm({ mode, onLogin, onSignup }) {
   async function handleSubmit(event) {
     event.preventDefault();
 
-    // 공통 입력 검증을 프론트에서 먼저 끝내고 나서만 실제 가입 또는 로그인 요청을 보낸다.
+    // 기본 입력 누락을 먼저 막음.
     if (!form.name.trim() || !form.birthDate || !form.gender) {
       setErrorMessage("이름, 생년월일, 성별을 모두 입력해 주세요.");
       return;
@@ -158,10 +157,10 @@ function AuthForm({ mode, onLogin, onSignup }) {
       const result = isLogin ? await onLogin?.(payload, mode) : await onSignup?.(payload);
 
       if (result?.ok === false) {
-        setErrorMessage(result.message || `${submitLabel} 요청이 실패했습니다.`);
+        setErrorMessage(result.message || `${submitLabel} 요청에 실패했습니다.`);
       }
     } catch (error) {
-      setErrorMessage(error?.message || `${submitLabel} 요청 중 오류가 발생했습니다.`);
+      setErrorMessage(error?.message || `${submitLabel} 처리 중 오류가 발생했습니다.`);
     } finally {
       setSubmitting(false);
     }
@@ -221,7 +220,7 @@ function AuthForm({ mode, onLogin, onSignup }) {
       {errorMessage ? <p className="auth-message auth-message--error">{errorMessage}</p> : null}
 
       <button type="submit" className="auth-submit">
-        {submitting ? "처리 중.." : submitLabel}
+        {submitting ? "처리 중..." : submitLabel}
       </button>
     </form>
   );
@@ -236,7 +235,7 @@ export function AuthPage({ mode = "login", notice = "", onLogin, onSignup }) {
       <section className="command-board command-board--auth">
         <div className="auth-shell">
           <section className="auth-card">
-            {/* 로그인, 회원가입, 관리자 로그인은 하나의 카드 레이아웃 안에서만 전환된다. */}
+            {/* 로그인과 회원가입 화면을 한 카드 안에서 전환함. */}
             <div className="auth-switch">
               <a
                 href={buildQuery("login")}
@@ -261,10 +260,10 @@ export function AuthPage({ mode = "login", notice = "", onLogin, onSignup }) {
               </h1>
               <p className="auth-form-description">
                 {isAdminLogin
-                  ? "관리자 계정으로 로그인하면 데이터 수집 현황 대시보드에 접근할 수 있습니다."
+                  ? "관리자 계정으로 로그인하면 대시보드에 바로 접근할 수 있습니다."
                   : mode === "signup"
-                    ? "회원가입 시 개인정보 동의를 먼저 확인하고, 동의 완료 후 계정을 등록합니다."
-                    : "회원가입한 이름, 생년월일, 성별을 입력하고 지점을 선택하면 해당 촬영 페이지로 바로 이동합니다."}
+                    ? "개인정보 동의 후 회원가입을 진행합니다."
+                    : "회원가입한 이름, 생년월일, 성별을 입력하고 지점을 선택하면 수집 화면으로 이동합니다."}
               </p>
 
               {notice ? <p className="auth-message auth-message--notice">{notice}</p> : null}

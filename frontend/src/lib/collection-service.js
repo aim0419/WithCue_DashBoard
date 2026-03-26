@@ -7,6 +7,7 @@ import {
 } from "firebase/firestore";
 import { getFirebaseDb, waitForFirebaseAuthReady } from "./firebase-client.js";
 
+// 지점 코드와 표시명을 한 곳에서 관리함.
 export const LOCATION_META = {
   aim: {
     docId: "Company",
@@ -17,20 +18,21 @@ export const LOCATION_META = {
   },
   hyocheon: {
     docId: "HyoCheon",
-    name: "효천점",
-    displayName: "필라테스 이끌림 효천점",
+    name: "필라테스 이끌림 효천점",
+    displayName: "이끌림(효천점)",
     siteCode: "H",
     chipLabel: "효천점",
   },
   jangdeok: {
     docId: "Jangdeok",
-    name: "장덕점",
-    displayName: "필라테스 이끌림 장덕점",
+    name: "필라테스 이끌림 장덕점",
+    displayName: "이끌림(장덕)",
     siteCode: "J",
     chipLabel: "장덕점",
   },
 };
 
+// 촬영 부위 메타와 파일명 코드를 함께 관리함.
 export const BODY_PART_OPTIONS = [
   { key: "Neck", label: "목", fileSegment: "neck" },
   { key: "Hip", label: "허리", fileSegment: "hip" },
@@ -67,15 +69,15 @@ function toFriendlyCollectionError(error, fallbackMessage) {
   const code = error?.code || "";
 
   if (code.includes("unauthenticated")) {
-    return "인증 상태가 확인되지 않았음. 다시 로그인해야 함.";
+    return "인증 상태를 확인할 수 없습니다. 다시 로그인해 주세요.";
   }
 
   if (code.includes("permission-denied")) {
-    return "수집 처리 권한이 없음. Firebase 규칙을 확인해야 함.";
+    return "수집 처리 권한이 없습니다. Firestore 규칙을 확인해 주세요.";
   }
 
   if (code.includes("deadline-exceeded") || code.includes("timeout")) {
-    return "수집 요청 응답이 지연되고 있음. 잠시 후 다시 시도해야 함.";
+    return "수집 요청 응답이 지연되고 있습니다. 잠시 후 다시 시도해 주세요.";
   }
 
   return error?.message || fallbackMessage;
@@ -93,7 +95,7 @@ export async function ensureCollectorConsentAtLocation(session) {
       `${session?.userId || "unknown"}_${locationMeta.docId}`,
     );
 
-    const result = await runTransaction(db, async (transaction) => {
+    return runTransaction(db, async (transaction) => {
       const snapshot = await transaction.get(participantRef);
 
       if (snapshot.exists()) {
@@ -122,11 +124,9 @@ export async function ensureCollectorConsentAtLocation(session) {
         id: participantRef.id,
       };
     });
-
-    return result;
   } catch (error) {
     throw new Error(
-      toFriendlyCollectionError(error, "지점 동의 처리 중 오류가 발생했음."),
+      toFriendlyCollectionError(error, "지점 동의 처리 중 오류가 발생했습니다."),
     );
   }
 }
@@ -174,7 +174,7 @@ export async function saveCollectionRecording({
     };
   } catch (error) {
     throw new Error(
-      toFriendlyCollectionError(error, "녹화 기록 저장 중 오류가 발생했음."),
+      toFriendlyCollectionError(error, "녹화 기록 저장 중 오류가 발생했습니다."),
     );
   }
 }

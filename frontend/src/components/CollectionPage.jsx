@@ -2,11 +2,11 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import {
   BODY_PART_OPTIONS,
   buildRecordingFileName,
+  ensureCollectorConsentAtLocation,
   formatBirthDateChip,
   formatGenderLabel,
   getLocationChipLabel,
   saveCollectionRecording,
-  ensureCollectorConsentAtLocation,
 } from "../lib/collection-service.js";
 
 const RECORDER_CANDIDATES = [
@@ -45,7 +45,7 @@ export function CollectionPage({ session, profile, onLogout }) {
   const [isCameraReady, setIsCameraReady] = useState(false);
   const [isRecording, setIsRecording] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
-  const [statusMessage, setStatusMessage] = useState("카메라 연결을 준비하는 중임.");
+  const [statusMessage, setStatusMessage] = useState("카메라를 준비하고 있습니다.");
   const [errorMessage, setErrorMessage] = useState("");
   const [downloadMessage, setDownloadMessage] = useState("");
 
@@ -56,9 +56,9 @@ export function CollectionPage({ session, profile, onLogout }) {
   );
 
   useEffect(() => {
-    // 수집 화면 진입 시 같은 사용자-지점 조합의 동의 건수를 한 번만 반영함.
+    // 같은 사용자-지점 조합의 첫 동의만 기록함.
     ensureCollectorConsentAtLocation(session).catch(() => {
-      // 동의 집계 실패는 촬영 자체를 막지 않고 뒤쪽 경고 문구만 유지함.
+      // 동의 기록 실패가 촬영 자체를 막지는 않게 둠.
     });
   }, [session]);
 
@@ -66,7 +66,7 @@ export function CollectionPage({ session, profile, onLogout }) {
     async function prepareCamera() {
       try {
         setErrorMessage("");
-        setStatusMessage("카메라 접근 권한을 확인하는 중임.");
+        setStatusMessage("카메라 권한을 확인하고 있습니다.");
 
         const stream = await navigator.mediaDevices.getUserMedia({
           video: selectedDeviceId ? { deviceId: { exact: selectedDeviceId } } : { facingMode: "user" },
@@ -97,10 +97,10 @@ export function CollectionPage({ session, profile, onLogout }) {
         }
 
         setIsCameraReady(true);
-        setStatusMessage("카메라 연결이 완료되었음. 촬영 부위를 선택하고 녹화를 시작하면 됨.");
+        setStatusMessage("카메라 연결이 완료되었습니다. 촬영 부위를 선택하고 녹화를 시작해 주세요.");
       } catch (error) {
         setIsCameraReady(false);
-        setErrorMessage("카메라를 사용할 수 없음. 브라우저 권한과 장치 연결 상태를 확인해야 함.");
+        setErrorMessage("카메라를 사용할 수 없습니다. 브라우저 권한과 장치 연결 상태를 확인해 주세요.");
         setStatusMessage("");
       }
     }
@@ -117,7 +117,7 @@ export function CollectionPage({ session, profile, onLogout }) {
 
   async function handleStartRecording() {
     if (!streamRef.current) {
-      setErrorMessage("카메라 연결이 완료된 뒤 녹화를 시작할 수 있음.");
+      setErrorMessage("카메라 연결이 완료된 뒤에 녹화를 시작할 수 있습니다.");
       return;
     }
 
@@ -143,7 +143,7 @@ export function CollectionPage({ session, profile, onLogout }) {
       mediaRecorder.onstop = async () => {
         setIsRecording(false);
         setIsSaving(true);
-        setStatusMessage("녹화 파일을 정리하고 집계를 반영하는 중임.");
+        setStatusMessage("파일을 저장하고 있습니다.");
 
         try {
           const actualMimeType = mediaRecorder.mimeType || mimeType || "video/webm";
@@ -162,11 +162,11 @@ export function CollectionPage({ session, profile, onLogout }) {
             durationMs,
           });
 
-          setDownloadMessage(`${activeBodyPart.label} 녹화 파일을 내려받았고 대시보드 집계도 반영했음.`);
-          setStatusMessage("다음 부위를 바로 이어서 촬영할 수 있음.");
+          setDownloadMessage("녹화 파일 저장과 집계 반영이 완료되었습니다.");
+          setStatusMessage("다음 촬영을 계속 진행할 수 있습니다.");
         } catch (error) {
-          setErrorMessage(error?.message || "녹화 저장 중 오류가 발생했음.");
-          setStatusMessage("촬영은 끝났지만 저장 후처리 확인이 필요함.");
+          setErrorMessage(error?.message || "녹화 저장 중 오류가 발생했습니다.");
+          setStatusMessage("오류 내용을 확인해 주세요.");
         } finally {
           setIsSaving(false);
           chunksRef.current = [];
@@ -175,9 +175,9 @@ export function CollectionPage({ session, profile, onLogout }) {
 
       mediaRecorder.start();
       setIsRecording(true);
-      setStatusMessage(`${activeBodyPart.label} 녹화를 진행 중임. 종료 버튼으로 저장 가능함.`);
+      setStatusMessage(`${activeBodyPart.label} 녹화 중입니다.`);
     } catch (error) {
-      setErrorMessage("브라우저 녹화를 시작할 수 없음. 지원 브라우저 여부를 확인해야 함.");
+      setErrorMessage("브라우저에서 녹화를 시작할 수 없습니다.");
     }
   }
 
@@ -197,7 +197,7 @@ export function CollectionPage({ session, profile, onLogout }) {
             <p className="info-card__kicker">COLLECTION</p>
             <h1>데이터 수집</h1>
             <p className="collection-description">
-              노트북 브라우저에서 바로 카메라를 연결하고 녹화 파일을 내려받는 수집 흐름임.
+              노트북 브라우저에서 바로 카메라를 연결하고 녹화 파일을 내려받는 수집 흐름입니다.
             </p>
           </div>
 
@@ -219,7 +219,7 @@ export function CollectionPage({ session, profile, onLogout }) {
               <div>
                 <h2>카메라 미리보기</h2>
                 <p className="collection-panel__description">
-                  브라우저에서 직접 카메라를 열고 동일한 화면으로 촬영 상태를 확인하는 구조임.
+                  브라우저에서 직접 카메라를 열고 현재 촬영 상태를 확인하는 영역입니다.
                 </p>
               </div>
 
@@ -260,7 +260,8 @@ export function CollectionPage({ session, profile, onLogout }) {
             <div>
               <h2>촬영 부위 선택</h2>
               <p className="collection-panel__description">
-                촬영할 부위를 먼저 고르고, 녹화 시작 후 종료하면 파일 저장과 집계 반영이 함께 진행됨.
+                촬영할 부위를 먼저 고르고 녹화를 시작한 뒤 종료하면 파일 저장과 집계 반영이 함께
+                진행됩니다.
               </p>
             </div>
 
@@ -284,7 +285,7 @@ export function CollectionPage({ session, profile, onLogout }) {
               <p className="collection-action-box__label">현재 선택 부위</p>
               <strong className="collection-action-box__value">{activeBodyPart.label}</strong>
               <p className="collection-action-box__hint">
-                녹화 파일은 브라우저 다운로드로 저장되고, 완료 시 지점 집계도 Firestore에 즉시 반영됨.
+                녹화 파일은 브라우저 다운로드로 저장되고, 완료 시 집계에도 즉시 반영됩니다.
               </p>
             </div>
 
@@ -295,7 +296,7 @@ export function CollectionPage({ session, profile, onLogout }) {
                 onClick={handleStartRecording}
                 disabled={!isCameraReady || isRecording || isSaving}
               >
-                {isSaving ? "저장 중.." : isRecording ? "녹화 진행 중" : `${activeBodyPart.label} 녹화 시작`}
+                {isSaving ? "저장 중..." : isRecording ? "녹화 중" : `${activeBodyPart.label} 녹화 시작`}
               </button>
               <button
                 type="button"
