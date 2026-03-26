@@ -39,7 +39,7 @@ function GenderSelector({ value, onChange }) {
 
 function LocationSelector({ value, onChange }) {
   return (
-    <div className="auth-location-grid" role="group" aria-label="위치 선택">
+    <div className="auth-location-grid" role="group" aria-label="지점 선택">
       {locationOptions.map((option) => (
         <button
           type="button"
@@ -62,11 +62,11 @@ function ConsentField({ agreed, onChange }) {
         <div className="auth-consent__box">
           <p className="auth-consent__title">개인정보 수집 및 이용 안내</p>
           <p className="auth-consent__text">
-            이름, 생년월일, 성별은 데이터 수집 참여자 확인과 수집 기록 관리 목적으로만
-            사용됩니다.
+            이름, 생년월일, 성별은 데이터 수집 참여 여부 확인과 수집 기록 관리 목적으로만
+            사용합니다.
           </p>
           <p className="auth-consent__text">
-            수집된 정보는 연구 및 운영 목적에 한해 사용되며, 촬영 데이터와 참여자 정보를
+            수집된 정보는 연구 및 운영 목적에 한해 사용하며, 촬영 데이터와 참여자 정보를
             연결하는 식별 정보로만 관리됩니다.
           </p>
           <p className="auth-consent__text">
@@ -124,7 +124,7 @@ function AuthForm({ mode, onLogin, onSignup }) {
   async function handleSubmit(event) {
     event.preventDefault();
 
-    // 공통 입력 검증을 프론트에서 먼저 끝내고 나서만 실제 가입/로그인 요청을 보낸다.
+    // 공통 입력 검증을 프론트에서 먼저 끝내고 나서만 실제 가입 또는 로그인 요청을 보낸다.
     if (!form.name.trim() || !form.birthDate || !form.gender) {
       setErrorMessage("이름, 생년월일, 성별을 모두 입력해 주세요.");
       return;
@@ -153,11 +153,17 @@ function AuthForm({ mode, onLogin, onSignup }) {
     };
 
     setSubmitting(true);
-    const result = isLogin ? await onLogin?.(payload, mode) : await onSignup?.(payload);
-    setSubmitting(false);
 
-    if (result?.ok === false) {
-      setErrorMessage(result.message || `${submitLabel}에 실패했습니다.`);
+    try {
+      const result = isLogin ? await onLogin?.(payload, mode) : await onSignup?.(payload);
+
+      if (result?.ok === false) {
+        setErrorMessage(result.message || `${submitLabel} 요청이 실패했습니다.`);
+      }
+    } catch (error) {
+      setErrorMessage(error?.message || `${submitLabel} 요청 중 오류가 발생했습니다.`);
+    } finally {
+      setSubmitting(false);
     }
   }
 
@@ -168,7 +174,7 @@ function AuthForm({ mode, onLogin, onSignup }) {
         <input
           className="auth-input"
           type="text"
-          placeholder="이름을 입력해 주세요"
+          placeholder="이름을 입력해 주세요."
           value={form.name}
           onChange={(event) => updateField("name", event.target.value)}
         />
@@ -215,7 +221,7 @@ function AuthForm({ mode, onLogin, onSignup }) {
       {errorMessage ? <p className="auth-message auth-message--error">{errorMessage}</p> : null}
 
       <button type="submit" className="auth-submit">
-        {submitting ? "처리 중..." : submitLabel}
+        {submitting ? "처리 중.." : submitLabel}
       </button>
     </form>
   );
@@ -230,7 +236,7 @@ export function AuthPage({ mode = "login", notice = "", onLogin, onSignup }) {
       <section className="command-board command-board--auth">
         <div className="auth-shell">
           <section className="auth-card">
-            {/* 로그인/회원가입/관리자 로그인은 하나의 카드 레이아웃 안에서만 전환된다. */}
+            {/* 로그인, 회원가입, 관리자 로그인은 하나의 카드 레이아웃 안에서만 전환된다. */}
             <div className="auth-switch">
               <a
                 href={buildQuery("login")}
