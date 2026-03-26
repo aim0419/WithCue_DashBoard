@@ -1,5 +1,5 @@
 import { getApp, getApps, initializeApp } from "firebase/app";
-import { getFirestore } from "firebase/firestore";
+import { getFirestore } from "firebase/firestore/lite";
 import { firebaseConfig, hasFirebaseConfig } from "../../config/firebase-config.js";
 
 export function getFirebaseApp() {

@@ -6,7 +6,7 @@ import {
   query,
   serverTimestamp,
   where,
-} from "firebase/firestore";
+} from "firebase/firestore/lite";
 import { getFirebaseDb } from "./firebase-client.js";
 
 const FIRESTORE_REQUEST_TIMEOUT_MS = 12000;

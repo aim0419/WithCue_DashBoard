@@ -1,4 +1,4 @@
-import { collection, getDocs } from "firebase/firestore";
+import { collection, getDocs } from "firebase/firestore/lite";
 import { getFirebaseDb } from "./firebase-client.js";
 
 // Firebase가 비어 있거나 연결 실패했을 때 UI 확인용으로 쓰는 예비 데이터다.
