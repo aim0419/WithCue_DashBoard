@@ -5,6 +5,8 @@
     "dev:frontend": "vite",
     "dev:all": "powershell -ExecutionPolicy Bypass -File ./scripts/start-dev.ps1",
     "dev:backend": "python ./backend/app_web.py",
+    "files:auto-sort": "powershell -ExecutionPolicy Bypass -File ./scripts/start-auto-sort.ps1",
+    "build:auto-sort-exe": "powershell -ExecutionPolicy Bypass -File ./scripts/build-auto-sort-exe.ps1",
     "build": "vite build",
     "preview": "vite preview",
     "serve": "vite",

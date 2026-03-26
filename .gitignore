@@ -8,8 +8,14 @@ backend/__pycache__/
 backend/*.pyc
 backend/*.pyo
 backend/*.pyd
+scripts/__pycache__/
+scripts/*.pyc
+scripts/*.pyo
+scripts/*.pyd
 backend/.env
 frontend/.env
 frontend/.env.local
 frontend/.env.*.local
 Desktop/Data_Auto/
+build/
+release/
