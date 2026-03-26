@@ -26,7 +26,7 @@ export const LOCATION_META = {
   jangdeok: {
     docId: "Jangdeok",
     name: "필라테스 이끌림 장덕점",
-    displayName: "이끌림(장덕)",
+    displayName: "이끌림(장덕점)",
     siteCode: "J",
     chipLabel: "장덕점",
   },
