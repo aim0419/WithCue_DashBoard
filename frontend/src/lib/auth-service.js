@@ -265,28 +265,12 @@ export async function loginUser({ name, birthDate, gender, location }) {
       };
     }
 
+    // 로그인 단계에서는 읽기만 수행해 권한 충돌 가능성을 줄임.
     const matchedUser = matchedUsers[0];
-    const numberInfo = await withTimeout(
-      ensureUserNumber(matchedUser.id),
-      "회원 번호 확인이 지연되고 있습니다.",
-    );
-
-    try {
-      await updateCollectorAuthUidIfNeeded(matchedUser);
-    } catch {
-      // 보조 UID 갱신 실패가 로그인 자체를 막지 않게 둠.
-    }
 
     return {
       ok: true,
-      session: buildCollectorSession(
-        {
-          ...matchedUser,
-          UserNumber: numberInfo.userNumber,
-          MemberCode: numberInfo.memberCode,
-        },
-        location,
-      ),
+      session: buildCollectorSession(matchedUser, location),
     };
   } catch (error) {
     return {
