@@ -5,12 +5,12 @@ export const pageMeta = {
     description: "개인정보 동의 인원, 세션 저장 수, 수집 카테고리 현황을 통합 확인하는 관리자 화면입니다.",
   },
   jangdeok: {
-    title: "이끌림(장덕)",
-    description: "이끌림(장덕) 수집 현황만 별도로 확인할 수 있는 관리자 화면입니다.",
+    title: "필라테스 이끌림 장덕점",
+    description: "필라테스 이끌림 장덕점 수집 현황만 별도로 확인할 수 있는 관리자 화면입니다.",
   },
   hyocheon: {
-    title: "이끌림(효천)",
-    description: "이끌림(효천) 수집 현황만 별도로 확인할 수 있는 관리자 화면입니다.",
+    title: "필라테스 이끌림 효천점",
+    description: "필라테스 이끌림 효천점 수집 현황만 별도로 확인할 수 있는 관리자 화면입니다.",
   },
   company: {
     title: "AIM",
@@ -21,8 +21,8 @@ export const pageMeta = {
 export const categoryPages = {
   main: { label: "전체", href: "/?page=main", matchName: null },
   company: { label: "AIM", href: "/?page=company", matchName: "회사" },
-  jangdeok: { label: "이끌림(장덕)", href: "/?page=jangdeok", matchName: "장덕점" },
-  hyocheon: { label: "이끌림(효천)", href: "/?page=hyocheon", matchName: "효천점" },
+  jangdeok: { label: "필라테스 이끌림 장덕점", href: "/?page=jangdeok", matchName: "장덕점" },
+  hyocheon: { label: "필라테스 이끌림 효천점", href: "/?page=hyocheon", matchName: "효천점" },
 };
 
 export const bodyPartMeta = [

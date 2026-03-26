@@ -18,14 +18,14 @@ export const LOCATION_META = {
   hyocheon: {
     docId: "HyoCheon",
     name: "효천점",
-    displayName: "갤러리 효천점",
+    displayName: "필라테스 이끌림 효천점",
     siteCode: "H",
     chipLabel: "효천점",
   },
   jangdeok: {
     docId: "Jangdeok",
     name: "장덕점",
-    displayName: "갤러리 장덕점",
+    displayName: "필라테스 이끌림 장덕점",
     siteCode: "J",
     chipLabel: "장덕점",
   },
