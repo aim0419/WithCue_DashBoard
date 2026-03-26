@@ -6,9 +6,9 @@ import { CollectionPage } from "./components/CollectionPage.jsx";
 import { SummaryPanel } from "./components/SummaryPanel.jsx";
 import { categoryPages, pageMeta } from "./data/dashboard-meta.js";
 import { useDashboardData } from "./hooks/useDashboardData.js";
-import { loginUser, signUpUser } from "./lib/auth-service.js";
+import { clearFirebaseSession, loginUser, signUpUser } from "./lib/auth-service.js";
 
-// 인증 정보를 브라우저 저장소에 나눠 저장해 관리자 세션과 수집 세션을 분리 유지함.
+// 관리자 세션과 수집 세션을 분리 보관해 화면 전환 기준을 단순화한 구조임.
 const AUTH_PROFILE_KEY = "withcue-auth-profile";
 const AUTH_ADMIN_SESSION_KEY = "withcue-admin-session";
 const AUTH_COLLECTOR_SESSION_KEY = "withcue-collector-session";
@@ -42,7 +42,7 @@ function navigateTo(paramsObject) {
 }
 
 function sumBodyParts(locations) {
-  // 대시보드 바디맵은 현재 페이지 기준 위치 문서들을 먼저 합산한 뒤 렌더링함.
+  // 대시보드 바디맵은 현재 페이지 기준 문서를 먼저 합산한 뒤 렌더링하는 구조임.
   return locations.reduce(
     (totals, location) => {
       totals.Neck += Number(location.BodyParts?.Neck || 0);
@@ -76,7 +76,7 @@ export default function App() {
   const { data, loading } = useDashboardData();
 
   useEffect(() => {
-    // 브라우저 뒤로가기나 수동 주소 변경이 있어도 React 상태를 현재 URL 기준으로 다시 동기화함.
+    // 브라우저 뒤로가기나 수동 주소 변경이 있어도 화면 상태를 URL 기준으로 복원하는 처리임.
     const handleLocationChange = () => {
       setView(getViewFromLocation());
       setPageKey(getPageKeyFromLocation());
@@ -92,7 +92,7 @@ export default function App() {
   }, []);
 
   useEffect(() => {
-    // 관리자 세션이 살아 있으면 인증 화면 대신 대시보드로 고정함.
+    // 관리자 세션이 남아 있으면 인증 화면 대신 대시보드로 고정하는 처리임.
     if (!authSession) {
       return;
     }
@@ -113,7 +113,7 @@ export default function App() {
   }, [authSession, view]);
 
   useEffect(() => {
-    // 수집 세션은 별도 화면으로 유지하고 세션이 없는데 collect 경로만 남아 있으면 로그인 화면으로 되돌림.
+    // 수집 세션은 별도 화면으로 유지하고 세션이 없는데 collect 경로만 남아 있으면 로그인 화면으로 되돌리는 처리임.
     if (authSession?.role === "admin") {
       return;
     }
@@ -172,14 +172,16 @@ export default function App() {
       const profile = result.profile;
       window.localStorage.setItem(AUTH_PROFILE_KEY, JSON.stringify(profile));
       setAuthProfile(profile);
-      setAuthNotice(result.message || "회원가입이 완료되었음. 같은 정보로 로그인하면 수집 화면으로 이동함.");
+      setAuthNotice(
+        result.message || "회원가입이 완료됐음. 같은 정보로 로그인하면 수집 화면으로 이동함.",
+      );
       setView("login");
       navigateTo({ view: "login" });
       return { ok: true };
     } catch (error) {
       return {
         ok: false,
-        message: error?.message || "회원가입 처리 중 예기치 못한 오류가 발생했음.",
+        message: error?.message || "회원가입 처리 중 알 수 없는 오류가 발생했음.",
       };
     }
   }
@@ -226,26 +228,28 @@ export default function App() {
     } catch (error) {
       return {
         ok: false,
-        message: error?.message || "로그인 처리 중 예기치 못한 오류가 발생했음.",
+        message: error?.message || "로그인 처리 중 알 수 없는 오류가 발생했음.",
       };
     }
   }
 
   function handleNavigatePage(nextPageKey) {
-    // 카테고리 전환은 새로고침 없이 URL과 화면 상태를 같이 갱신함.
+    // 카테고리 전환은 새로고침 없이 URL과 화면 상태를 같이 갱신하는 처리임.
     setPageKey(nextPageKey);
     setView("dashboard");
     navigateTo({ page: nextPageKey });
   }
 
-  function handleAdminLogout() {
+  async function handleAdminLogout() {
+    await clearFirebaseSession().catch(() => {});
     window.localStorage.removeItem(AUTH_ADMIN_SESSION_KEY);
     setAuthSession(null);
     setView("login");
     navigateTo({ view: "login" });
   }
 
-  function handleCollectorLogout() {
+  async function handleCollectorLogout() {
+    await clearFirebaseSession().catch(() => {});
     window.localStorage.removeItem(AUTH_COLLECTOR_SESSION_KEY);
     setCollectorSession(null);
     setView("login");
@@ -253,7 +257,7 @@ export default function App() {
   }
 
   useEffect(() => {
-    // 문서 제목은 현재 사용자 흐름에 맞춰 로그인, 수집, 대시보드 상태를 구분해 표기함.
+    // 문서 제목을 현재 사용자 흐름에 맞춰 로그인, 수집, 대시보드 상태로 구분하는 처리임.
     if (authSession?.role === "admin") {
       document.title = `WithCue 관리자 대시보드 - ${currentPage.title}`;
       return;

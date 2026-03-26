@@ -1,14 +1,5 @@
-import {
-  addDoc,
-  collection,
-  doc,
-  getDoc,
-  increment,
-  serverTimestamp,
-  setDoc,
-  updateDoc,
-} from "firebase/firestore/lite";
-import { getFirebaseDb } from "./firebase-client.js";
+import { httpsCallable } from "firebase/functions";
+import { getFirebaseFunctions, waitForFirebaseAuthReady } from "./firebase-client.js";
 
 export const LOCATION_META = {
   aim: {
@@ -56,59 +47,42 @@ function sanitizeFileSegment(value) {
     .toLowerCase();
 }
 
-function buildParticipantLocationId(session) {
-  const locationMeta = getLocationMeta(session?.location);
-  return `${session?.id || "unknown"}_${locationMeta.docId}`;
+function getCallable(name) {
+  return httpsCallable(getFirebaseFunctions(), name);
 }
 
-async function ensureLocationDocument(locationMeta) {
-  const db = getFirebaseDb();
-  const locationRef = doc(db, "locations", locationMeta.docId);
+function toFriendlyCollectionError(error, fallbackMessage) {
+  const code = error?.code || "";
 
-  await setDoc(
-    locationRef,
-    {
-      Name: locationMeta.name,
-      DisplayName: locationMeta.displayName,
-      SiteCode: locationMeta.siteCode,
-      UpdatedAt: serverTimestamp(),
-    },
-    { merge: true },
-  );
+  if (code.includes("unauthenticated")) {
+    return "인증 상태가 확인되지 않았음. 다시 로그인 후 시도해야 함.";
+  }
 
-  return locationRef;
+  if (code.includes("permission-denied")) {
+    return "수집 처리 권한이 없음. 관리자 설정 확인이 필요함.";
+  }
+
+  if (code.includes("deadline-exceeded") || code.includes("timeout")) {
+    return "수집 요청 응답이 지연되고 있음. 잠시 후 다시 시도해야 함.";
+  }
+
+  return error?.message || fallbackMessage;
 }
 
 export async function ensureCollectorConsentAtLocation(session) {
-  // 같은 사용자가 같은 지점에 다시 들어와도 동의 건수는 한 번만 증가시키는 보정 로직임.
-  const db = getFirebaseDb();
-  const locationMeta = getLocationMeta(session?.location);
-  const participantRef = doc(db, "locationParticipants", buildParticipantLocationId(session));
-  const existingParticipant = await getDoc(participantRef);
-
-  if (existingParticipant.exists()) {
-    return { ok: true, alreadyCounted: true, locationMeta };
+  // 동의 집계 반영을 브라우저 직접 쓰기 대신 서버 함수로 넘겨 중복 증가를 서버에서 보정하는 구조임.
+  try {
+    await waitForFirebaseAuthReady();
+    const ensureCollectorLocationAccess = getCallable("ensureCollectorLocationAccess");
+    const { data } = await ensureCollectorLocationAccess({
+      location: session?.location || "aim",
+    });
+    return data;
+  } catch (error) {
+    throw new Error(
+      toFriendlyCollectionError(error, "지점 접근 권한 준비 중 오류가 발생했음."),
+    );
   }
-
-  const locationRef = await ensureLocationDocument(locationMeta);
-
-  await setDoc(participantRef, {
-    UserId: session?.id || "",
-    Name: session?.name || "",
-    BirthDate: Number(session?.birthDate || 0),
-    Gender: session?.gender || "",
-    Location: locationMeta.docId,
-    SiteCode: locationMeta.siteCode,
-    CreatedAt: serverTimestamp(),
-    UpdatedAt: serverTimestamp(),
-  });
-
-  await updateDoc(locationRef, {
-    ConsentCount: increment(1),
-    UpdatedAt: serverTimestamp(),
-  });
-
-  return { ok: true, alreadyCounted: false, locationMeta };
 }
 
 export async function saveCollectionRecording({
@@ -119,46 +93,24 @@ export async function saveCollectionRecording({
   size,
   durationMs,
 }) {
-  // 녹화 완료 시 세션 로그와 대시보드용 집계를 함께 기록하는 프론트 단독 수집 저장 로직임.
-  const db = getFirebaseDb();
-  const locationMeta = getLocationMeta(session?.location);
-  const bodyPart = BODY_PART_OPTIONS.find((option) => option.key === bodyPartKey);
-
-  if (!bodyPart) {
-    throw new Error("지원하지 않는 촬영 부위임.");
+  // 실제 집계 증가와 세션 기록은 callable function에서 처리하고 브라우저는 메타데이터만 전달하는 구조임.
+  try {
+    await waitForFirebaseAuthReady();
+    const recordCollectionSession = getCallable("recordCollectionSession");
+    const { data } = await recordCollectionSession({
+      location: session?.location || "aim",
+      bodyPartKey,
+      fileName,
+      mimeType,
+      size: Number(size || 0),
+      durationMs: Number(durationMs || 0),
+    });
+    return data;
+  } catch (error) {
+    throw new Error(
+      toFriendlyCollectionError(error, "녹화 기록 저장 중 오류가 발생했음."),
+    );
   }
-
-  await ensureCollectorConsentAtLocation(session);
-
-  await addDoc(collection(db, "collectionSessions"), {
-    UserId: session?.id || "",
-    Name: session?.name || "",
-    BirthDate: Number(session?.birthDate || 0),
-    Gender: session?.gender || "",
-    Location: locationMeta.docId,
-    SiteCode: locationMeta.siteCode,
-    BodyPart: bodyPart.key,
-    BodyPartLabel: bodyPart.label,
-    FileName: fileName,
-    MimeType: mimeType,
-    FileSize: Number(size || 0),
-    DurationMs: Number(durationMs || 0),
-    CreatedAt: serverTimestamp(),
-  });
-
-  const locationRef = await ensureLocationDocument(locationMeta);
-
-  await updateDoc(locationRef, {
-    SessionCount: increment(1),
-    [`BodyParts.${bodyPart.key}`]: increment(1),
-    UpdatedAt: serverTimestamp(),
-  });
-
-  return {
-    ok: true,
-    bodyPart,
-    locationMeta,
-  };
 }
 
 export function buildRecordingFileName(session, bodyPartKey) {
