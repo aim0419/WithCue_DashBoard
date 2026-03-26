@@ -43,6 +43,17 @@ const BODY_PART_META = {
   RightKnee: { key: "RightKnee", label: "오른쪽 무릎" },
 };
 
+const BODY_PART_CODE_MAP = {
+  Neck: "01",
+  Hip: "02",
+  LeftShoulder: "03",
+  RightShoulder: "04",
+  LeftKnee: "05",
+  RightKnee: "06",
+};
+
+const USER_COUNTER_REF = db.collection("systemCounters").doc("users");
+
 function normalizeName(value) {
   return String(value || "").trim().normalize("NFC");
 }
@@ -142,6 +153,53 @@ async function ensureAuthIdentity(userRef, userData) {
   return createdUser.uid;
 }
 
+function formatMemberCode(userNumber) {
+  const parsedUserNumber = Number(userNumber || 0);
+
+  if (!Number.isInteger(parsedUserNumber) || parsedUserNumber < 0) {
+    return "00";
+  }
+
+  return String(parsedUserNumber).padStart(2, "0");
+}
+
+async function ensureUserNumber(userRef) {
+  return db.runTransaction(async (transaction) => {
+    const userSnapshot = await transaction.get(userRef);
+    const userData = userSnapshot.data() || {};
+    const existingUserNumber = Number(userData.UserNumber || 0);
+
+    if (Number.isInteger(existingUserNumber) && existingUserNumber > 0) {
+      return existingUserNumber;
+    }
+
+    const counterSnapshot = await transaction.get(USER_COUNTER_REF);
+    const nextUserNumber = Number(counterSnapshot.data()?.NextUserNumber || 1);
+    const assignedUserNumber =
+      Number.isInteger(nextUserNumber) && nextUserNumber > 0 ? nextUserNumber : 1;
+
+    transaction.set(
+      USER_COUNTER_REF,
+      {
+        NextUserNumber: assignedUserNumber + 1,
+        UpdatedAt: Timestamp.now(),
+      },
+      { merge: true },
+    );
+
+    transaction.set(
+      userRef,
+      {
+        UserNumber: assignedUserNumber,
+        UpdatedAt: FieldValue.serverTimestamp(),
+      },
+      { merge: true },
+    );
+
+    return assignedUserNumber;
+  });
+}
+
 async function ensureLocationDocument(locationMeta) {
   const locationRef = db.collection("locations").doc(locationMeta.docId);
 
@@ -184,6 +242,8 @@ async function ensureParticipantDocument({ userRef, userData, authUid, locationM
   await participantRef.set({
     UserId: authUid,
     UserDocId: userRef.id,
+    UserNumber: Number(userData.UserNumber || 0),
+    MemberCode: formatMemberCode(userData.UserNumber),
     Name: userData.Name,
     BirthDate: Number(userData.BirthDate || 0),
     Gender: userData.Gender || "",
@@ -208,10 +268,12 @@ async function ensureParticipantDocument({ userRef, userData, authUid, locationM
   };
 }
 
-function buildSessionPayload({ authUid, userRef, userData, location, role }) {
+function buildSessionPayload({ authUid, userRef, userData, location, role, userNumber }) {
   return {
     id: authUid,
     userDocId: userRef.id,
+    userNumber,
+    memberCode: formatMemberCode(userNumber),
     role,
     name: userData.Name,
     birthDate: Number(userData.BirthDate || 0),
@@ -239,6 +301,7 @@ export const signUpCollector = onCall(async (request) => {
   if (existingUser) {
     const existingData = existingUser.data();
     const authUid = await ensureAuthIdentity(existingUser.ref, existingData);
+    const userNumber = await ensureUserNumber(existingUser.ref);
 
     return {
       ok: true,
@@ -249,6 +312,7 @@ export const signUpCollector = onCall(async (request) => {
         userData: existingData,
         location: "",
         role: existingData.Role === "admin" ? "admin" : "collector",
+        userNumber,
       }),
     };
   }
@@ -270,6 +334,7 @@ export const signUpCollector = onCall(async (request) => {
   const createdSnapshot = await userRef.get();
   const createdData = createdSnapshot.data();
   const authUid = await ensureAuthIdentity(userRef, createdData);
+  const userNumber = await ensureUserNumber(userRef);
 
   return {
     ok: true,
@@ -280,6 +345,7 @@ export const signUpCollector = onCall(async (request) => {
       userData: createdData,
       location: "",
       role: "collector",
+      userNumber,
     }),
   };
 });
@@ -311,6 +377,7 @@ export const loginCollector = onCall(async (request) => {
   }
 
   const authUid = await ensureAuthIdentity(userSnapshot.ref, userData);
+  const userNumber = await ensureUserNumber(userSnapshot.ref);
   const customToken = await auth.createCustomToken(authUid, {
     role,
     userDocId: userSnapshot.id,
@@ -325,6 +392,7 @@ export const loginCollector = onCall(async (request) => {
       userData,
       location,
       role,
+      userNumber,
     }),
   };
 });
@@ -348,9 +416,15 @@ export const ensureCollectorLocationAccess = onCall(async (request) => {
     throw new HttpsError("permission-denied", "수집 사용자만 접근 가능함.");
   }
 
+  const userNumber = await ensureUserNumber(userSnapshot.ref);
+  const enrichedUserData = {
+    ...userData,
+    UserNumber: userNumber,
+  };
+
   const consentResult = await ensureParticipantDocument({
     userRef: userSnapshot.ref,
-    userData,
+    userData: enrichedUserData,
     authUid: request.auth.uid,
     locationMeta,
   });
@@ -396,9 +470,15 @@ export const recordCollectionSession = onCall(async (request) => {
     throw new HttpsError("permission-denied", "수집 사용자만 기록 가능함.");
   }
 
+  const userNumber = await ensureUserNumber(userSnapshot.ref);
+  const enrichedUserData = {
+    ...userData,
+    UserNumber: userNumber,
+  };
+
   await ensureParticipantDocument({
     userRef: userSnapshot.ref,
-    userData,
+    userData: enrichedUserData,
     authUid: request.auth.uid,
     locationMeta,
   });
@@ -406,6 +486,8 @@ export const recordCollectionSession = onCall(async (request) => {
   await db.collection("collectionSessions").add({
     UserId: request.auth.uid,
     UserDocId: userSnapshot.id,
+    UserNumber: userNumber,
+    MemberCode: formatMemberCode(userNumber),
     Name: userData.Name,
     BirthDate: Number(userData.BirthDate || 0),
     Gender: userData.Gender || "",
@@ -413,6 +495,7 @@ export const recordCollectionSession = onCall(async (request) => {
     SiteCode: locationMeta.siteCode,
     BodyPart: bodyPart.key,
     BodyPartLabel: bodyPart.label,
+    BodyPartCode: BODY_PART_CODE_MAP[bodyPart.key] || "00",
     FileName: fileName,
     MimeType: mimeType,
     FileSize: fileSize,

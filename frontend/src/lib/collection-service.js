@@ -34,17 +34,27 @@ export const BODY_PART_OPTIONS = [
   { key: "RightKnee", label: "오른쪽 무릎", fileSegment: "right-knee" },
 ];
 
+const BODY_PART_CODE_MAP = {
+  Neck: "01",
+  Hip: "02",
+  LeftShoulder: "03",
+  RightShoulder: "04",
+  LeftKnee: "05",
+  RightKnee: "06",
+};
+
 function getLocationMeta(locationKey) {
   return LOCATION_META[locationKey] || LOCATION_META.aim;
 }
 
-function sanitizeFileSegment(value) {
-  return String(value || "")
-    .trim()
-    .normalize("NFC")
-    .replace(/[^\p{L}\p{N}-]+/gu, "-")
-    .replace(/^-+|-+$/g, "")
-    .toLowerCase();
+function formatMemberCode(value) {
+  const parsedValue = Number(value || 0);
+
+  if (!Number.isInteger(parsedValue) || parsedValue < 0) {
+    return "00";
+  }
+
+  return String(parsedValue).padStart(2, "0");
 }
 
 function getCallable(name) {
@@ -115,17 +125,10 @@ export async function saveCollectionRecording({
 
 export function buildRecordingFileName(session, bodyPartKey) {
   const locationMeta = getLocationMeta(session?.location);
-  const bodyPart = BODY_PART_OPTIONS.find((option) => option.key === bodyPartKey);
-  const timestamp = new Date()
-    .toISOString()
-    .replace(/[:.]/g, "-")
-    .replace("T", "_")
-    .replace("Z", "");
-  const safeName = sanitizeFileSegment(session?.name || "collector");
-  const birthDate = String(session?.birthDate || "");
-  const bodyPartSegment = bodyPart?.fileSegment || "capture";
+  const bodyPartCode = BODY_PART_CODE_MAP[bodyPartKey] || "00";
+  const memberCode = session?.memberCode || formatMemberCode(session?.userNumber);
 
-  return `${locationMeta.siteCode}_${safeName}_${birthDate}_${bodyPartSegment}_${timestamp}.webm`;
+  return `${locationMeta.siteCode}-${bodyPartCode}-${memberCode}.webm`;
 }
 
 export function formatGenderLabel(gender) {
