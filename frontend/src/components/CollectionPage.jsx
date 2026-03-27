@@ -56,12 +56,12 @@ export function CollectionPage({ session, profile, onLogout, logoutCountdownLabe
     () => BODY_PART_OPTIONS.find((option) => option.key === selectedBodyPartKey) || BODY_PART_OPTIONS[0],
     [selectedBodyPartKey],
   );
-  const recordingStatusLabel = `${displayProfile?.name || "참여자"}님 ${activeBodyPart.label} 녹화중`;
+  const recordingStatusLabel = `${activeBodyPart.label} 녹화중`;
 
   useEffect(() => {
-    // 같은 사용자와 지점 조합은 첫 참여만 기록함.
+    // 같은 사용자와 지점 조합은 최초 1회만 참여 인원으로 기록함.
     ensureCollectorConsentAtLocation(session).catch(() => {
-      // 동의 기록 실패가 촬영 자체를 막지 않도록 둠.
+      // 참여 기록 실패가 촬영 자체를 막지 않도록 무시함.
     });
   }, [session]);
 
@@ -201,7 +201,6 @@ export function CollectionPage({ session, profile, onLogout, logoutCountdownLabe
           <div className="collection-title">
             <p className="info-card__kicker">COLLECTION</p>
             <h1>데이터 수집</h1>
-            {isRecording ? <p className="collection-recording-badge">{recordingStatusLabel}</p> : null}
           </div>
 
           <span className="session-expiry">{logoutCountdownLabel}</span>
@@ -209,6 +208,12 @@ export function CollectionPage({ session, profile, onLogout, logoutCountdownLabe
             로그아웃
           </button>
         </header>
+
+        {isRecording ? (
+          <div className="collection-recording-banner">
+            <p className="collection-recording-badge">{recordingStatusLabel}</p>
+          </div>
+        ) : null}
 
         <section className="collection-chip-row" aria-label="참여자 정보">
           <span className="collection-chip">수집 위치: {getLocationChipLabel(session?.location)}</span>
