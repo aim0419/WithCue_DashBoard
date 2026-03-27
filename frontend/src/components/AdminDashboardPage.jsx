@@ -18,7 +18,9 @@ export function AdminDashboardPage({
   onOpenAdjustmentDrawer,
   onCloseAdjustmentDrawer,
   onSubmitAdjustment,
+  onDeleteAdjustment,
   adjustmentSubmitting,
+  deletingAdjustmentId,
 }) {
   return (
     <main className="dashboard">
@@ -56,7 +58,9 @@ export function AdminDashboardPage({
           open={adjustmentDrawerOpen}
           onClose={onCloseAdjustmentDrawer}
           onSubmit={onSubmitAdjustment}
+          onDelete={onDeleteAdjustment}
           submitting={adjustmentSubmitting}
+          deletingAdjustmentId={deletingAdjustmentId}
           recentAdjustments={dashboardData?.recentAdjustments || []}
         />
 

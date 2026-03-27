@@ -1160,8 +1160,35 @@ body::before {
   background: rgba(12, 35, 64, 0.58);
 }
 
+.legacy-history__top {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+}
+
 .legacy-history__label {
   color: var(--text);
+}
+
+.legacy-history__delete {
+  flex-shrink: 0;
+  min-height: 34px;
+  padding: 0 12px;
+  border: 1px solid rgba(255, 125, 142, 0.34);
+  border-radius: 12px;
+  background: rgba(58, 16, 28, 0.78);
+  color: #ffd8df;
+  font: inherit;
+  font-size: 0.9rem;
+  font-weight: 800;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.legacy-history__delete:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
 }
 
 .legacy-history__meta,

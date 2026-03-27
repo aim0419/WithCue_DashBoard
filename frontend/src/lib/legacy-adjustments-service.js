@@ -1,6 +1,8 @@
 import {
   addDoc,
   collection,
+  deleteDoc,
+  doc,
   getDocs,
   limit,
   query,
@@ -105,4 +107,15 @@ export async function createLegacyAdjustment({
     CreatedAt: serverTimestamp(),
     UpdatedAt: serverTimestamp(),
   });
+}
+
+export async function deleteLegacyAdjustment(adjustmentId) {
+  await waitForFirebaseAuthReady();
+
+  if (!adjustmentId) {
+    throw new Error("삭제할 보정 데이터가 없습니다.");
+  }
+
+  const db = getFirebaseDb();
+  await deleteDoc(doc(db, "legacyAdjustments", adjustmentId));
 }

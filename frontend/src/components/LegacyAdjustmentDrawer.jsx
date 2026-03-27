@@ -18,7 +18,9 @@ export function LegacyAdjustmentDrawer({
   open,
   onClose,
   onSubmit,
+  onDelete,
   submitting,
+  deletingAdjustmentId,
   recentAdjustments,
 }) {
   const [form, setForm] = useState({
@@ -87,6 +89,23 @@ export function LegacyAdjustmentDrawer({
       setMessage("기존 데이터 반영이 완료되었습니다.");
     } catch (submitError) {
       setError(submitError?.message || "기존 데이터 반영 중 오류가 발생했습니다.");
+    }
+  }
+
+  async function handleDeleteAdjustment(adjustmentId) {
+    const shouldDelete = window.confirm("이 보정 데이터를 삭제하시겠습니까?");
+
+    if (!shouldDelete) {
+      return;
+    }
+
+    try {
+      setError("");
+      setMessage("");
+      await onDelete?.(adjustmentId);
+      setMessage("보정 데이터를 삭제했습니다.");
+    } catch (deleteError) {
+      setError(deleteError?.message || "보정 데이터 삭제 중 오류가 발생했습니다.");
     }
   }
 
@@ -221,9 +240,19 @@ export function LegacyAdjustmentDrawer({
           <div className="legacy-history__list">
             {recentAdjustments.map((item) => (
               <article className="legacy-history__item" key={item.id}>
-                <strong className="legacy-history__label">
-                  {locationLabelMap[item.Location] || item.Location} / {item.BodyPartLabel}
-                </strong>
+                <div className="legacy-history__top">
+                  <strong className="legacy-history__label">
+                    {locationLabelMap[item.Location] || item.Location} / {item.BodyPartLabel}
+                  </strong>
+                  <button
+                    type="button"
+                    className="legacy-history__delete"
+                    onClick={() => handleDeleteAdjustment(item.id)}
+                    disabled={deletingAdjustmentId === item.id}
+                  >
+                    {deletingAdjustmentId === item.id ? "삭제 중..." : "삭제"}
+                  </button>
+                </div>
                 {item.TargetUserName ? (
                   <span className="legacy-history__meta">
                     대상 {item.TargetUserNumber}번 {item.TargetUserName}

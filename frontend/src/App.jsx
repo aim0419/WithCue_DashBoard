@@ -12,7 +12,10 @@ import {
   getFilteredLocations,
   sumBodyParts,
 } from "./lib/dashboard-selectors.js";
-import { createLegacyAdjustment } from "./lib/legacy-adjustments-service.js";
+import {
+  createLegacyAdjustment,
+  deleteLegacyAdjustment,
+} from "./lib/legacy-adjustments-service.js";
 
 const AUTH_PROFILE_KEY = "withcue-auth-profile";
 const AUTH_ADMIN_SESSION_KEY = "withcue-admin-session";
@@ -73,6 +76,7 @@ export default function App() {
   const [authNotice, setAuthNotice] = useState("");
   const [adjustmentDrawerOpen, setAdjustmentDrawerOpen] = useState(false);
   const [adjustmentSubmitting, setAdjustmentSubmitting] = useState(false);
+  const [deletingAdjustmentId, setDeletingAdjustmentId] = useState("");
   const { data, loading, refresh } = useDashboardData();
 
   const sessionRoles = getSessionRoles(authSession);
@@ -295,6 +299,20 @@ export default function App() {
     [authSession, refresh],
   );
 
+  const handleDeleteAdjustment = useCallback(
+    async (adjustmentId) => {
+      setDeletingAdjustmentId(adjustmentId);
+
+      try {
+        await deleteLegacyAdjustment(adjustmentId);
+        await refresh();
+      } finally {
+        setDeletingAdjustmentId("");
+      }
+    },
+    [refresh],
+  );
+
   useEffect(() => {
     if (hasAdminSession) {
       document.title = `WithCue 관리자 대시보드 - ${currentPage.title}`;
@@ -336,7 +354,9 @@ export default function App() {
         onOpenAdjustmentDrawer={() => setAdjustmentDrawerOpen(true)}
         onCloseAdjustmentDrawer={() => setAdjustmentDrawerOpen(false)}
         onSubmitAdjustment={handleSubmitAdjustment}
+        onDeleteAdjustment={handleDeleteAdjustment}
         adjustmentSubmitting={adjustmentSubmitting}
+        deletingAdjustmentId={deletingAdjustmentId}
       />
     );
   }
