@@ -8,7 +8,6 @@ import {
   runTransaction,
   serverTimestamp,
   setDoc,
-  updateDoc,
   where,
 } from "firebase/firestore";
 import {
@@ -47,6 +46,7 @@ function getUserRoles(user) {
   return ["collector"];
 }
 
+// 수집 화면에서 바로 쓸 세션 정보만 추려서 만듦.
 function buildCollectorSession(user, location) {
   const roles = getUserRoles(user);
 
@@ -90,6 +90,7 @@ function toFriendlyFirebaseError(error, fallbackMessage) {
 }
 
 // Firestore 지연 시 무한 대기를 막기 위한 보호 로직임.
+// Firestore 응답 지연 시 무한 대기를 막음.
 function withTimeout(promise, timeoutMessage) {
   return Promise.race([
     promise,
@@ -126,6 +127,7 @@ async function findUsersByIdentity({ name, birthDate, gender }) {
 }
 
 // 기존 사용자 번호가 없으면 카운터 문서를 이용해 새 번호를 발급함.
+// 사용자 번호가 비어 있으면 카운터 문서에서 다음 번호를 발급함.
 async function ensureUserNumber(userId) {
   const db = getFirebaseDb();
   const userRef = doc(db, "users", userId);
@@ -174,6 +176,7 @@ async function ensureUserNumber(userId) {
 }
 
 // 회원가입 시 최소 필드를 먼저 만들고 번호를 뒤이어 발급함.
+// 회원가입 시 기본 문서를 만들고 사용자 번호를 이어서 발급함.
 async function createCollectorUser({ name, birthDate, gender, consentAgreed }) {
   const db = getFirebaseDb();
   const auth = getFirebaseAuth();
@@ -211,20 +214,6 @@ async function createCollectorUser({ name, birthDate, gender, consentAgreed }) {
 }
 
 // 익명 인증 UID 연결은 보조 정보이므로 실패해도 로그인은 계속 허용함.
-async function updateCollectorAuthUidIfNeeded(user) {
-  const auth = getFirebaseAuth();
-  const currentUid = auth.currentUser?.uid || "";
-
-  if (!currentUid || user.AuthUid === currentUid) {
-    return;
-  }
-
-  await updateDoc(doc(getFirebaseDb(), "users", user.id), {
-    AuthUid: currentUid,
-    UpdatedAt: serverTimestamp(),
-  });
-}
-
 export async function clearFirebaseSession() {
   await signOut(getFirebaseAuth());
   resetFirebaseAuthReady();
