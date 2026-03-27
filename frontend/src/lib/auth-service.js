@@ -11,7 +11,12 @@ import {
   updateDoc,
   where,
 } from "firebase/firestore";
-import { getFirebaseAuth, getFirebaseDb, waitForFirebaseAuthReady } from "./firebase-client.js";
+import {
+  getFirebaseAuth,
+  getFirebaseDb,
+  resetFirebaseAuthReady,
+  waitForFirebaseAuthReady,
+} from "./firebase-client.js";
 
 const FIRESTORE_REQUEST_TIMEOUT_MS = 12000;
 const USER_COUNTER_DOC_PATH = ["systemCounters", "users"];
@@ -222,6 +227,7 @@ async function updateCollectorAuthUidIfNeeded(user) {
 
 export async function clearFirebaseSession() {
   await signOut(getFirebaseAuth());
+  resetFirebaseAuthReady();
 }
 
 export async function signUpUser({ name, birthDate, gender, consentAgreed }) {
