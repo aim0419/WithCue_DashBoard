@@ -674,10 +674,31 @@ body::before {
 }
 
 .auth-consent__box {
+  max-height: 280px;
   padding: 16px 18px;
   border: 1px solid rgba(95, 202, 255, 0.18);
   border-radius: 18px;
   background: rgba(12, 35, 64, 0.64);
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(63, 224, 255, 0.55) rgba(255, 255, 255, 0.04);
+}
+
+.auth-consent__box::-webkit-scrollbar {
+  width: 10px;
+}
+
+.auth-consent__box::-webkit-scrollbar-track {
+  background: rgba(255, 255, 255, 0.04);
+  border-radius: 999px;
+}
+
+.auth-consent__box::-webkit-scrollbar-thumb {
+  background: rgba(63, 224, 255, 0.55);
+  border-radius: 999px;
+  border: 2px solid transparent;
+  background-clip: padding-box;
 }
 
 .auth-consent__title {
