@@ -982,6 +982,8 @@ body::before {
   border: 1px solid rgba(95, 202, 255, 0.16);
   border-radius: 22px;
   background: rgba(5, 21, 39, 0.78);
+  justify-items: center;
+  text-align: center;
 }
 
 .collection-action-box__label {
