@@ -60,16 +60,30 @@ function ConsentField({ agreed, onChange }) {
       <span className="auth-field__label">개인정보 동의</span>
       <div className="auth-consent">
         <div className="auth-consent__box">
-          <p className="auth-consent__title">개인정보 수집 및 이용 안내</p>
+          <p className="auth-consent__title">개인정보 보호 및 데이터 관리 방안</p>
           <p className="auth-consent__text">
-            이름, 생년월일, 성별은 데이터 수집 참여 여부 확인과 기록 관리 목적으로만 사용합니다.
+            입력된 정보는 연구 참여자 식별 및 영상 데이터 파일명 매핑을 위해 사용됩니다. 동의해야 다음 단계로 이동할 수 있습니다.
           </p>
           <p className="auth-consent__text">
-            수집된 정보는 연구 및 운영 목적에 한해 사용하며, 촬영 데이터와 참여자 정보를 연결하는
-            식별 정보로만 관리합니다.
+            1. 개인정보 비식별화 처리: 수집된 영상 데이터는 개인정보 보호를 위해 비식별화 절차를 거쳐 관리합니다.
           </p>
           <p className="auth-consent__text">
-            동의하지 않으면 회원가입 이후 수집 절차를 진행할 수 없습니다.
+            얼굴 영역은 개인 식별 가능성을 최소화하기 위해 자동 또는 수동 방식의 모자이크(Blur/Masking) 처리 대상이 될 수 있으며, 실명과 개인 식별 정보는 데이터 파일에 직접 포함하지 않습니다.
+          </p>
+          <p className="auth-consent__text">
+            참여자 정보는 무작위 생성된 참여자 ID 코드로 관리하며, 영상 파일에는 음성 정보를 포함하지 않거나 필요한 경우 별도의 음성 제거 절차를 적용합니다.
+          </p>
+          <p className="auth-consent__text">
+            2. 데이터 접근 통제: 데이터는 연구 수행에 직접 참여하는 연구자에게만 접근 권한을 부여하며, 제한된 인원만 접근할 수 있도록 관리합니다.
+          </p>
+          <p className="auth-consent__text">
+            외부 반출 또는 공유가 필요한 경우에는 비식별화 처리된 데이터에 한해 제공합니다.
+          </p>
+          <p className="auth-consent__text">
+            3. 데이터 저장 및 보관: 데이터는 AIM 내부 저장 시스템에 보관하며, 정기적인 백업과 접근 권한 관리를 적용합니다.
+          </p>
+          <p className="auth-consent__text">
+            수집 목적 범위 안에서만 데이터를 사용하며, 동의하지 않으면 회원가입 이후 수집 절차를 진행할 수 없습니다.
           </p>
         </div>
 
