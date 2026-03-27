@@ -285,6 +285,7 @@ export default function App() {
           sessionDelta: form.sessionDelta,
           consentDelta: form.consentDelta,
           note: form.note,
+          targetUser: form.targetUser,
         });
         await refresh();
       } finally {

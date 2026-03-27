@@ -1,4 +1,12 @@
-import { addDoc, collection, serverTimestamp } from "firebase/firestore";
+import {
+  addDoc,
+  collection,
+  getDocs,
+  limit,
+  query,
+  serverTimestamp,
+  where,
+} from "firebase/firestore";
 import { BODY_PART_OPTIONS, LOCATION_META } from "./collection-service.js";
 import { getFirebaseDb, waitForFirebaseAuthReady } from "./firebase-client.js";
 
@@ -19,6 +27,40 @@ function getBodyPartOption(bodyPartKey) {
   return BODY_PART_OPTIONS.find((option) => option.key === bodyPartKey) || BODY_PART_OPTIONS[0];
 }
 
+export async function findUserByUserNumber(userNumber) {
+  await waitForFirebaseAuthReady();
+
+  const normalizedUserNumber = Number(userNumber || 0);
+
+  if (!Number.isInteger(normalizedUserNumber) || normalizedUserNumber <= 0) {
+    throw new Error("회원번호는 1 이상의 숫자로 입력해 주세요.");
+  }
+
+  const db = getFirebaseDb();
+  const userQuery = query(
+    collection(db, "users"),
+    where("UserNumber", "==", normalizedUserNumber),
+    limit(1),
+  );
+  const snapshot = await getDocs(userQuery);
+
+  if (snapshot.empty) {
+    return null;
+  }
+
+  const userDoc = snapshot.docs[0];
+  const userData = userDoc.data();
+
+  return {
+    id: userDoc.id,
+    name: userData.Name || "",
+    userNumber: Number(userData.UserNumber || 0),
+    memberCode: userData.MemberCode || "",
+    birthDate: Number(userData.BirthDate || 0),
+    gender: userData.Gender || "",
+  };
+}
+
 export async function createLegacyAdjustment({
   adminSession,
   location,
@@ -26,6 +68,7 @@ export async function createLegacyAdjustment({
   sessionDelta,
   consentDelta,
   note,
+  targetUser,
 }) {
   await waitForFirebaseAuthReady();
 
@@ -39,6 +82,10 @@ export async function createLegacyAdjustment({
     throw new Error("추가 건수 또는 인원 수를 1 이상 입력해 주세요.");
   }
 
+  if (!targetUser?.id || !targetUser?.name || !targetUser?.userNumber) {
+    throw new Error("반영할 회원번호를 먼저 검색해 주세요.");
+  }
+
   await addDoc(collection(db, "legacyAdjustments"), {
     Location: location,
     LocationDocId: locationMeta.docId,
@@ -49,6 +96,10 @@ export async function createLegacyAdjustment({
     SessionDelta: normalizedSessionDelta,
     ConsentDelta: normalizedConsentDelta,
     Note: String(note || "").trim(),
+    TargetUserId: targetUser.id,
+    TargetUserName: targetUser.name,
+    TargetUserNumber: Number(targetUser.userNumber || 0),
+    TargetMemberCode: targetUser.memberCode || "",
     CreatedByName: adminSession?.name || "",
     CreatedByUserId: adminSession?.userId || "",
     CreatedAt: serverTimestamp(),

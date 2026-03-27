@@ -252,6 +252,10 @@ service cloud.firestore {
           "SessionDelta",
           "ConsentDelta",
           "Note",
+          "TargetUserId",
+          "TargetUserName",
+          "TargetUserNumber",
+          "TargetMemberCode",
           "CreatedByName",
           "CreatedByUserId",
           "CreatedAt",
@@ -268,6 +272,11 @@ service cloud.firestore {
         request.resource.data.ConsentDelta is int &&
         request.resource.data.ConsentDelta >= 0 &&
         request.resource.data.Note is string &&
+        isNonEmptyString(request.resource.data.TargetUserId) &&
+        isNonEmptyString(request.resource.data.TargetUserName) &&
+        request.resource.data.TargetUserNumber is int &&
+        request.resource.data.TargetUserNumber >= 1 &&
+        request.resource.data.TargetMemberCode is string &&
         isNonEmptyString(request.resource.data.CreatedByName) &&
         isNonEmptyString(request.resource.data.CreatedByUserId);
 

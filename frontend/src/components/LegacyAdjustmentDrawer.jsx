@@ -1,5 +1,6 @@
 import { useMemo, useState } from "react";
 import { BODY_PART_OPTIONS, LOCATION_META } from "../lib/collection-service.js";
+import { findUserByUserNumber } from "../lib/legacy-adjustments-service.js";
 
 const locationOptions = [
   { value: "aim", label: LOCATION_META.aim.displayName },
@@ -26,9 +27,12 @@ export function LegacyAdjustmentDrawer({
     sessionDelta: "30",
     consentDelta: "1",
     note: "대시보드 도입 전 수집분",
+    searchUserNumber: "",
   });
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
+  const [searching, setSearching] = useState(false);
+  const [targetUser, setTargetUser] = useState(null);
 
   const locationLabelMap = useMemo(
     () => Object.fromEntries(locationOptions.map((option) => [option.value, option.label])),
@@ -39,6 +43,33 @@ export function LegacyAdjustmentDrawer({
     setForm((prev) => ({ ...prev, [key]: value }));
     setError("");
     setMessage("");
+
+    if (key === "searchUserNumber") {
+      setTargetUser(null);
+    }
+  }
+
+  async function handleSearchUser() {
+    try {
+      setSearching(true);
+      setError("");
+      setMessage("");
+      const matchedUser = await findUserByUserNumber(form.searchUserNumber);
+
+      if (!matchedUser) {
+        setTargetUser(null);
+        setError("일치하는 회원번호의 사용자를 찾지 못했습니다.");
+        return;
+      }
+
+      setTargetUser(matchedUser);
+      setMessage(`회원번호 ${matchedUser.userNumber}번 ${matchedUser.name}님을 찾았습니다.`);
+    } catch (searchError) {
+      setTargetUser(null);
+      setError(searchError?.message || "회원 검색 중 오류가 발생했습니다.");
+    } finally {
+      setSearching(false);
+    }
   }
 
   async function handleSubmit(event) {
@@ -51,6 +82,7 @@ export function LegacyAdjustmentDrawer({
         ...form,
         sessionDelta: Number(form.sessionDelta || 0),
         consentDelta: Number(form.consentDelta || 0),
+        targetUser,
       });
       setMessage("기존 데이터 반영이 완료되었습니다.");
     } catch (submitError) {
@@ -78,6 +110,39 @@ export function LegacyAdjustmentDrawer({
       </div>
 
       <form className="legacy-form" onSubmit={handleSubmit}>
+        <div className="auth-field">
+          <span className="auth-field__label">회원번호 검색</span>
+          <div className="legacy-search-row">
+            <input
+              className="auth-input"
+              type="number"
+              min="1"
+              placeholder="예: 3"
+              value={form.searchUserNumber}
+              onChange={(event) => updateField("searchUserNumber", event.target.value)}
+            />
+            <button
+              type="button"
+              className="legacy-search-button"
+              onClick={handleSearchUser}
+              disabled={searching}
+            >
+              {searching ? "검색 중.." : "검색"}
+            </button>
+          </div>
+        </div>
+
+        {targetUser ? (
+          <div className="legacy-target-user">
+            <strong className="legacy-target-user__name">
+              {targetUser.userNumber}번 {targetUser.name}
+            </strong>
+            <span className="legacy-target-user__meta">
+              회원코드 {targetUser.memberCode || "-"}
+            </span>
+          </div>
+        ) : null}
+
         <label className="auth-field">
           <span className="auth-field__label">지점 선택</span>
           <select
@@ -159,6 +224,11 @@ export function LegacyAdjustmentDrawer({
                 <strong className="legacy-history__label">
                   {locationLabelMap[item.Location] || item.Location} / {item.BodyPartLabel}
                 </strong>
+                {item.TargetUserName ? (
+                  <span className="legacy-history__meta">
+                    대상 {item.TargetUserNumber}번 {item.TargetUserName}
+                  </span>
+                ) : null}
                 <span className="legacy-history__meta">{formatAdjustmentItem(item)}</span>
                 {item.Note ? <span className="legacy-history__note">{item.Note}</span> : null}
               </article>
