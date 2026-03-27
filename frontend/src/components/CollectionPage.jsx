@@ -56,7 +56,7 @@ export function CollectionPage({ session, profile, onLogout, logoutCountdownLabe
     () => BODY_PART_OPTIONS.find((option) => option.key === selectedBodyPartKey) || BODY_PART_OPTIONS[0],
     [selectedBodyPartKey],
   );
-  const recordingStatusLabel = `${activeBodyPart.label} 녹화중`;
+  const recordingStatusLabel = `${displayProfile?.name || "참여자"}님 ${activeBodyPart.label} 녹화중`;
 
   useEffect(() => {
     // 같은 사용자와 지점 조합은 최초 1회만 참여 인원으로 기록함.
