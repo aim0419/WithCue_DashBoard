@@ -32,6 +32,24 @@ service cloud.firestore {
       return request.resource.data.keys().hasOnly(allowedKeys);
     }
 
+    function isValidLocationBodyParts(value) {
+      return value is map &&
+        value.keys().hasOnly([
+          "Hip",
+          "LeftKnee",
+          "LeftShoulder",
+          "Neck",
+          "RightKnee",
+          "RightShoulder"
+        ]) &&
+        value.Hip is int && value.Hip >= 0 &&
+        value.LeftKnee is int && value.LeftKnee >= 0 &&
+        value.LeftShoulder is int && value.LeftShoulder >= 0 &&
+        value.Neck is int && value.Neck >= 0 &&
+        value.RightKnee is int && value.RightKnee >= 0 &&
+        value.RightShoulder is int && value.RightShoulder >= 0;
+    }
+
     match /users/{userId} {
       allow read: if isSignedIn();
 
@@ -181,7 +199,42 @@ service cloud.firestore {
 
     match /locations/{documentId} {
       allow read: if isSignedIn();
-      allow write: if false;
+      allow create, update: if
+        isSignedIn() &&
+        hasOnlyKeys([
+          "Name",
+          "DisplayName",
+          "SiteCode",
+          "BodyParts",
+          "ConsentCount",
+          "SessionCount",
+          "UpdatedAt"
+        ]) &&
+        isNonEmptyString(request.resource.data.Name) &&
+        isNonEmptyString(request.resource.data.DisplayName) &&
+        isNonEmptyString(request.resource.data.SiteCode) &&
+        isValidLocationBodyParts(request.resource.data.BodyParts) &&
+        request.resource.data.ConsentCount is int &&
+        request.resource.data.ConsentCount >= 0 &&
+        request.resource.data.SessionCount is int &&
+        request.resource.data.SessionCount >= 0 &&
+        (
+          !resource.exists() ||
+          (
+            resource.data.Name == request.resource.data.Name &&
+            resource.data.DisplayName == request.resource.data.DisplayName &&
+            resource.data.SiteCode == request.resource.data.SiteCode &&
+            request.resource.data.ConsentCount >= resource.data.ConsentCount &&
+            request.resource.data.SessionCount >= resource.data.SessionCount &&
+            request.resource.data.BodyParts.Hip >= resource.data.BodyParts.Hip &&
+            request.resource.data.BodyParts.LeftKnee >= resource.data.BodyParts.LeftKnee &&
+            request.resource.data.BodyParts.LeftShoulder >= resource.data.BodyParts.LeftShoulder &&
+            request.resource.data.BodyParts.Neck >= resource.data.BodyParts.Neck &&
+            request.resource.data.BodyParts.RightKnee >= resource.data.BodyParts.RightKnee &&
+            request.resource.data.BodyParts.RightShoulder >= resource.data.BodyParts.RightShoulder
+          )
+        );
+      allow delete: if false;
     }
 
     match /{document=**} {

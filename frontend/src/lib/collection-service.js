@@ -51,8 +51,101 @@ const BODY_PART_CODE_MAP = {
   RightKnee: "06",
 };
 
+const EMPTY_BODY_PARTS = {
+  Hip: 0,
+  LeftKnee: 0,
+  LeftShoulder: 0,
+  Neck: 0,
+  RightKnee: 0,
+  RightShoulder: 0,
+};
+
 function getLocationMeta(locationKey) {
   return LOCATION_META[locationKey] || LOCATION_META.aim;
+}
+
+function createLocationSummary(meta) {
+  return {
+    Name: meta.name,
+    DisplayName: meta.displayName,
+    SiteCode: meta.siteCode,
+    BodyParts: { ...EMPTY_BODY_PARTS },
+    ConsentCount: 0,
+    SessionCount: 0,
+    UpdatedAt: serverTimestamp(),
+  };
+}
+
+function normalizeBodyParts(value) {
+  return {
+    ...EMPTY_BODY_PARTS,
+    ...(value && typeof value === "object" ? value : {}),
+  };
+}
+
+async function syncLocationConsentSummary(locationMeta) {
+  const db = getFirebaseDb();
+  const locationRef = doc(db, "locations", locationMeta.docId);
+
+  await runTransaction(db, async (transaction) => {
+    const snapshot = await transaction.get(locationRef);
+    const currentData = snapshot.exists()
+      ? snapshot.data()
+      : createLocationSummary(locationMeta);
+
+    transaction.set(
+      locationRef,
+      {
+        ...createLocationSummary(locationMeta),
+        ...currentData,
+        Name: locationMeta.name,
+        DisplayName: locationMeta.displayName,
+        SiteCode: locationMeta.siteCode,
+        BodyParts: normalizeBodyParts(currentData?.BodyParts),
+        ConsentCount: Number(currentData?.ConsentCount || 0) + 1,
+        SessionCount: Number(currentData?.SessionCount || 0),
+        UpdatedAt: serverTimestamp(),
+      },
+      { merge: true },
+    );
+  });
+}
+
+async function syncLocationSessionSummary(locationMeta, bodyPartKey) {
+  const db = getFirebaseDb();
+  const locationRef = doc(db, "locations", locationMeta.docId);
+
+  await runTransaction(db, async (transaction) => {
+    const snapshot = await transaction.get(locationRef);
+    const currentData = snapshot.exists()
+      ? snapshot.data()
+      : createLocationSummary(locationMeta);
+    const nextBodyParts = normalizeBodyParts(currentData?.BodyParts);
+
+    nextBodyParts[bodyPartKey] = Number(nextBodyParts[bodyPartKey] || 0) + 1;
+
+    transaction.set(
+      locationRef,
+      {
+        ...createLocationSummary(locationMeta),
+        ...currentData,
+        Name: locationMeta.name,
+        DisplayName: locationMeta.displayName,
+        SiteCode: locationMeta.siteCode,
+        BodyParts: nextBodyParts,
+        ConsentCount: Number(currentData?.ConsentCount || 0),
+        SessionCount: Number(currentData?.SessionCount || 0) + 1,
+        UpdatedAt: serverTimestamp(),
+      },
+      { merge: true },
+    );
+  });
+}
+
+function syncLocationSummarySafely(task, fallbackMessage) {
+  return task.catch((error) => {
+    console.warn(fallbackMessage, error);
+  });
 }
 
 function formatMemberCode(value) {
@@ -95,7 +188,7 @@ export async function ensureCollectorConsentAtLocation(session) {
       `${session?.userId || "unknown"}_${locationMeta.docId}`,
     );
 
-    return runTransaction(db, async (transaction) => {
+    const result = await runTransaction(db, async (transaction) => {
       const snapshot = await transaction.get(participantRef);
 
       if (snapshot.exists()) {
@@ -124,6 +217,15 @@ export async function ensureCollectorConsentAtLocation(session) {
         id: participantRef.id,
       };
     });
+
+    if (result.created) {
+      await syncLocationSummarySafely(
+        syncLocationConsentSummary(locationMeta),
+        "Failed to sync location consent summary.",
+      );
+    }
+
+    return result;
   } catch (error) {
     throw new Error(
       toFriendlyCollectionError(error, "지점 동의 처리 중 오류가 발생했습니다."),
@@ -167,6 +269,11 @@ export async function saveCollectionRecording({
       DurationMs: Number(durationMs || 0),
       CreatedAt: serverTimestamp(),
     });
+
+    await syncLocationSummarySafely(
+      syncLocationSessionSummary(locationMeta, bodyPartKey),
+      "Failed to sync location session summary.",
+    );
 
     return {
       ok: true,
