@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { formatBirthDateInput, normalizeBirthDateInput } from "../lib/birthdate.js";
 
 const genderOptions = [
@@ -110,6 +110,8 @@ function AuthForm({ mode, onLogin, onSignup }) {
   });
   const [errorMessage, setErrorMessage] = useState("");
   const [submitting, setSubmitting] = useState(false);
+  const aimTapResetTimerRef = useRef(null);
+  const [aimTapCount, setAimTapCount] = useState(0);
 
   const isLogin = mode === "login" || mode === "admin-login";
   const isAdminLogin = mode === "admin-login";
@@ -129,9 +131,54 @@ function AuthForm({ mode, onLogin, onSignup }) {
     return result.ok ? result.display : "";
   }, [form.birthDate]);
 
+  useEffect(() => {
+    return () => {
+      if (aimTapResetTimerRef.current) {
+        window.clearTimeout(aimTapResetTimerRef.current);
+      }
+    };
+  }, []);
+
   function updateField(key, value) {
     setForm((prev) => ({ ...prev, [key]: value }));
     setErrorMessage("");
+  }
+
+  function handleLocationChange(location) {
+    updateField("location", location);
+
+    if (mode !== "login") {
+      return;
+    }
+
+    if (location !== "aim") {
+      setAimTapCount(0);
+      if (aimTapResetTimerRef.current) {
+        window.clearTimeout(aimTapResetTimerRef.current);
+        aimTapResetTimerRef.current = null;
+      }
+      return;
+    }
+
+    setAimTapCount((prev) => {
+      const nextCount = prev + 1;
+
+      if (aimTapResetTimerRef.current) {
+        window.clearTimeout(aimTapResetTimerRef.current);
+      }
+
+      aimTapResetTimerRef.current = window.setTimeout(() => {
+        setAimTapCount(0);
+        aimTapResetTimerRef.current = null;
+      }, 4000);
+
+      if (nextCount >= 5) {
+        window.location.href = buildQuery("admin-login");
+        return 0;
+      }
+
+      return nextCount;
+    });
   }
 
   async function handleSubmit(event) {
@@ -217,10 +264,7 @@ function AuthForm({ mode, onLogin, onSignup }) {
       {mode === "login" ? (
         <div className="auth-field">
           <span className="auth-field__label">지점 선택</span>
-          <LocationSelector
-            value={form.location}
-            onChange={(location) => updateField("location", location)}
-          />
+          <LocationSelector value={form.location} onChange={handleLocationChange} />
         </div>
       ) : null}
 
@@ -284,15 +328,11 @@ export function AuthPage({ mode = "login", notice = "", onLogin, onSignup }) {
 
               <AuthForm mode={mode} onLogin={onLogin} onSignup={onSignup} />
 
-              {!isAdminLogin ? (
-                <a href={buildQuery("admin-login")} className="auth-admin-link">
-                  관리자 대시보드 로그인
-                </a>
-              ) : (
+              {isAdminLogin ? (
                 <a href={buildQuery("login")} className="auth-admin-link">
                   일반 수집 로그인으로 돌아가기
                 </a>
-              )}
+              ) : null}
             </div>
           </section>
         </div>
