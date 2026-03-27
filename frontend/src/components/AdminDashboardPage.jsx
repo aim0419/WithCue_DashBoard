@@ -1,5 +1,6 @@
 import { BodyMapPanel } from "./BodyMapPanel.jsx";
 import { CategoryCard } from "./CategoryCard.jsx";
+import { LegacyAdjustmentDrawer } from "./LegacyAdjustmentDrawer.jsx";
 import { SummaryPanel } from "./SummaryPanel.jsx";
 
 export function AdminDashboardPage({
@@ -13,6 +14,11 @@ export function AdminDashboardPage({
   loading,
   onNavigatePage,
   onLogout,
+  adjustmentDrawerOpen,
+  onOpenAdjustmentDrawer,
+  onCloseAdjustmentDrawer,
+  onSubmitAdjustment,
+  adjustmentSubmitting,
 }) {
   return (
     <main className="dashboard">
@@ -21,9 +27,14 @@ export function AdminDashboardPage({
           <div className="board-title board-title--compact">
             <p className="hero__description visually-hidden">{currentPage.description}</p>
           </div>
-          <button type="button" className="dashboard-logout" onClick={onLogout}>
-            로그아웃
-          </button>
+          <div className="board-header__actions">
+            <button type="button" className="dashboard-action" onClick={onOpenAdjustmentDrawer}>
+              기존 데이터 반영
+            </button>
+            <button type="button" className="dashboard-logout" onClick={onLogout}>
+              로그아웃
+            </button>
+          </div>
         </header>
 
         <section className="board-layout">
@@ -40,6 +51,14 @@ export function AdminDashboardPage({
 
           <BodyMapPanel bodyParts={displayedBodyParts} />
         </section>
+
+        <LegacyAdjustmentDrawer
+          open={adjustmentDrawerOpen}
+          onClose={onCloseAdjustmentDrawer}
+          onSubmit={onSubmitAdjustment}
+          submitting={adjustmentSubmitting}
+          recentAdjustments={dashboardData?.recentAdjustments || []}
+        />
 
         {loading ? (
           <div className="visually-hidden" aria-live="polite">

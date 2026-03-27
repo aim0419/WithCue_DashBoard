@@ -34,10 +34,19 @@ function createEmptyDashboardData() {
     SessionCount: 0,
     Categories: locations.map((location) => location.DisplayName),
     locations,
+    recentAdjustments: [],
   };
 }
 
-function aggregateDashboard(participantDocs, sessionDocs) {
+function sortAdjustmentDocs(adjustmentDocs) {
+  return [...adjustmentDocs].sort((leftDoc, rightDoc) => {
+    const leftDate = leftDoc.data().CreatedAt?.toMillis?.() || 0;
+    const rightDate = rightDoc.data().CreatedAt?.toMillis?.() || 0;
+    return rightDate - leftDate;
+  });
+}
+
+function aggregateDashboard(participantDocs, sessionDocs, adjustmentDocs) {
   const locationMap = new Map(
     LOCATION_ORDER.map((locationKey) => [locationKey, createLocationBucket(locationKey)]),
   );
@@ -70,9 +79,31 @@ function aggregateDashboard(participantDocs, sessionDocs) {
     }
   });
 
+  adjustmentDocs.forEach((snapshotDoc) => {
+    const data = snapshotDoc.data();
+    const locationKey = data.Location;
+    const bodyPartKey = data.BodyPart;
+
+    if (!locationMap.has(locationKey)) {
+      return;
+    }
+
+    const locationBucket = locationMap.get(locationKey);
+    locationBucket.ConsentCount += Number(data.ConsentDelta || 0);
+    locationBucket.SessionCount += Number(data.SessionDelta || 0);
+
+    if (Object.prototype.hasOwnProperty.call(locationBucket.BodyParts, bodyPartKey)) {
+      locationBucket.BodyParts[bodyPartKey] += Number(data.SessionDelta || 0);
+    }
+  });
+
   const locations = LOCATION_ORDER.map((locationKey) => locationMap.get(locationKey));
   const consentCount = locations.reduce((total, location) => total + location.ConsentCount, 0);
   const sessionCount = locations.reduce((total, location) => total + location.SessionCount, 0);
+  const recentAdjustments = sortAdjustmentDocs(adjustmentDocs).slice(0, 5).map((snapshotDoc) => ({
+    id: snapshotDoc.id,
+    ...snapshotDoc.data(),
+  }));
 
   return {
     source: sessionCount || consentCount ? "firebase" : "firebase-empty",
@@ -81,6 +112,7 @@ function aggregateDashboard(participantDocs, sessionDocs) {
     SessionCount: sessionCount,
     Categories: locations.map((location) => location.DisplayName),
     locations,
+    recentAdjustments,
   };
 }
 
@@ -89,16 +121,21 @@ export async function getDashboardData() {
     await waitForFirebaseAuthReady();
 
     const db = getFirebaseDb();
-    const [participantSnapshot, sessionSnapshot] = await Promise.all([
+    const [participantSnapshot, sessionSnapshot, adjustmentSnapshot] = await Promise.all([
       getDocs(collection(db, "locationParticipants")),
       getDocs(collection(db, "collectionSessions")),
+      getDocs(collection(db, "legacyAdjustments")),
     ]);
 
-    if (participantSnapshot.empty && sessionSnapshot.empty) {
+    if (participantSnapshot.empty && sessionSnapshot.empty && adjustmentSnapshot.empty) {
       return createEmptyDashboardData();
     }
 
-    return aggregateDashboard(participantSnapshot.docs, sessionSnapshot.docs);
+    return aggregateDashboard(
+      participantSnapshot.docs,
+      sessionSnapshot.docs,
+      adjustmentSnapshot.docs,
+    );
   } catch (error) {
     return {
       ...createEmptyDashboardData(),

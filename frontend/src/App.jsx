@@ -12,8 +12,8 @@ import {
   getFilteredLocations,
   sumBodyParts,
 } from "./lib/dashboard-selectors.js";
+import { createLegacyAdjustment } from "./lib/legacy-adjustments-service.js";
 
-// 관리자 세션과 수집 세션을 따로 저장해 화면 분기를 단순하게 유지함.
 const AUTH_PROFILE_KEY = "withcue-auth-profile";
 const AUTH_ADMIN_SESSION_KEY = "withcue-admin-session";
 const AUTH_COLLECTOR_SESSION_KEY = "withcue-collector-session";
@@ -71,14 +71,15 @@ export default function App() {
     readJsonFromStorage(AUTH_COLLECTOR_SESSION_KEY),
   );
   const [authNotice, setAuthNotice] = useState("");
-  const { data, loading } = useDashboardData();
+  const [adjustmentDrawerOpen, setAdjustmentDrawerOpen] = useState(false);
+  const [adjustmentSubmitting, setAdjustmentSubmitting] = useState(false);
+  const { data, loading, refresh } = useDashboardData();
 
   const sessionRoles = getSessionRoles(authSession);
   const hasAdminSession = sessionRoles.includes("admin");
   const isCollectorSession = Boolean(collectorSession);
 
   useEffect(() => {
-    // 브라우저 주소가 바뀌면 현재 화면 상태를 같이 복원함.
     const handleLocationChange = () => {
       setView(getViewFromLocation());
       setPageKey(getPageKeyFromLocation());
@@ -94,7 +95,6 @@ export default function App() {
   }, []);
 
   useEffect(() => {
-    // 관리자 세션은 항상 대시보드로 고정함.
     if (!authSession) {
       return;
     }
@@ -115,7 +115,6 @@ export default function App() {
   }, [authSession, hasAdminSession, view]);
 
   useEffect(() => {
-    // 수집 세션은 로그인 화면과 collect 화면만 오가도록 제한함.
     if (hasAdminSession) {
       return;
     }
@@ -136,6 +135,7 @@ export default function App() {
     source: "loading",
     updatedAt: "",
     locations: [],
+    recentAdjustments: [],
   };
 
   const currentPage = pageMeta[pageKey] || pageMeta.main;
@@ -255,6 +255,7 @@ export default function App() {
     await clearFirebaseSession().catch(() => {});
     window.localStorage.removeItem(AUTH_ADMIN_SESSION_KEY);
     setAuthSession(null);
+    setAdjustmentDrawerOpen(false);
     setView("login");
     navigateTo({ view: "login" });
   }, []);
@@ -272,8 +273,28 @@ export default function App() {
     onLogout: handleCollectorLogout,
   });
 
+  const handleSubmitAdjustment = useCallback(
+    async (form) => {
+      setAdjustmentSubmitting(true);
+
+      try {
+        await createLegacyAdjustment({
+          adminSession: authSession,
+          location: form.location,
+          bodyPartKey: form.bodyPartKey,
+          sessionDelta: form.sessionDelta,
+          consentDelta: form.consentDelta,
+          note: form.note,
+        });
+        await refresh();
+      } finally {
+        setAdjustmentSubmitting(false);
+      }
+    },
+    [authSession, refresh],
+  );
+
   useEffect(() => {
-    // 현재 사용자 상태에 맞춰 문서 제목을 갱신함.
     if (hasAdminSession) {
       document.title = `WithCue 관리자 대시보드 - ${currentPage.title}`;
       return;
@@ -310,6 +331,11 @@ export default function App() {
         loading={loading}
         onNavigatePage={handleNavigatePage}
         onLogout={handleAdminLogout}
+        adjustmentDrawerOpen={adjustmentDrawerOpen}
+        onOpenAdjustmentDrawer={() => setAdjustmentDrawerOpen(true)}
+        onCloseAdjustmentDrawer={() => setAdjustmentDrawerOpen(false)}
+        onSubmitAdjustment={handleSubmitAdjustment}
+        adjustmentSubmitting={adjustmentSubmitting}
       />
     );
   }

@@ -237,6 +237,43 @@ service cloud.firestore {
       allow delete: if false;
     }
 
+    match /legacyAdjustments/{documentId} {
+      allow read: if isSignedIn();
+
+      allow create: if
+        isSignedIn() &&
+        hasOnlyKeys([
+          "Location",
+          "LocationDocId",
+          "SiteCode",
+          "BodyPart",
+          "BodyPartCode",
+          "BodyPartLabel",
+          "SessionDelta",
+          "ConsentDelta",
+          "Note",
+          "CreatedByName",
+          "CreatedByUserId",
+          "CreatedAt",
+          "UpdatedAt"
+        ]) &&
+        isNonEmptyString(request.resource.data.Location) &&
+        isNonEmptyString(request.resource.data.LocationDocId) &&
+        isNonEmptyString(request.resource.data.SiteCode) &&
+        isNonEmptyString(request.resource.data.BodyPart) &&
+        isNonEmptyString(request.resource.data.BodyPartCode) &&
+        isNonEmptyString(request.resource.data.BodyPartLabel) &&
+        request.resource.data.SessionDelta is int &&
+        request.resource.data.SessionDelta >= 0 &&
+        request.resource.data.ConsentDelta is int &&
+        request.resource.data.ConsentDelta >= 0 &&
+        request.resource.data.Note is string &&
+        isNonEmptyString(request.resource.data.CreatedByName) &&
+        isNonEmptyString(request.resource.data.CreatedByUserId);
+
+      allow update, delete: if false;
+    }
+
     match /{document=**} {
       allow read, write: if false;
     }
