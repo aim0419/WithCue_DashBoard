@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { AuthPage } from "./components/AuthPage.jsx";
 import { BodyMapPanel } from "./components/BodyMapPanel.jsx";
 import { CategoryCard } from "./components/CategoryCard.jsx";
@@ -12,6 +12,7 @@ import { clearFirebaseSession, loginUser, signUpUser } from "./lib/auth-service.
 const AUTH_PROFILE_KEY = "withcue-auth-profile";
 const AUTH_ADMIN_SESSION_KEY = "withcue-admin-session";
 const AUTH_COLLECTOR_SESSION_KEY = "withcue-collector-session";
+const SESSION_IDLE_TIMEOUT_MS = 10 * 60 * 1000;
 
 function getSessionRoles(session) {
   if (Array.isArray(session?.roles) && session.roles.length > 0) {
@@ -57,6 +58,13 @@ function navigateTo(paramsObject) {
   window.history.replaceState({}, "", `/?${params.toString()}`);
 }
 
+function formatLogoutCountdown(remainingSeconds) {
+  const safeSeconds = Math.max(0, remainingSeconds);
+  const minutes = String(Math.floor(safeSeconds / 60)).padStart(2, "0");
+  const seconds = String(safeSeconds % 60).padStart(2, "0");
+  return `자동 로그아웃까지 ${minutes}:${seconds}`;
+}
+
 function sumBodyParts(locations) {
   // 대시보드 바디맵은 현재 페이지 기준 문서를 먼저 합산한 뒤 렌더링하는 구조임.
   return locations.reduce(
@@ -89,7 +97,12 @@ export default function App() {
     readJsonFromStorage(AUTH_COLLECTOR_SESSION_KEY),
   );
   const [authNotice, setAuthNotice] = useState("");
+  const [remainingSeconds, setRemainingSeconds] = useState(0);
   const { data, loading } = useDashboardData();
+  const idleDeadlineRef = useRef(0);
+  const idleLogoutPendingRef = useRef(false);
+  const sessionRoles = getSessionRoles(authSession);
+  const activeSessionType = collectorSession ? "collector" : null;
 
   useEffect(() => {
     // 브라우저 뒤로가기나 수동 주소 변경이 있어도 화면 상태를 URL 기준으로 복원하는 처리임.
@@ -273,21 +286,81 @@ export default function App() {
     navigateTo({ page: nextPageKey });
   }
 
-  async function handleAdminLogout() {
+  const handleAdminLogout = useCallback(async () => {
     await clearFirebaseSession().catch(() => {});
     window.localStorage.removeItem(AUTH_ADMIN_SESSION_KEY);
     setAuthSession(null);
     setView("login");
     navigateTo({ view: "login" });
-  }
+  }, []);
 
-  async function handleCollectorLogout() {
+  const handleCollectorLogout = useCallback(async () => {
     await clearFirebaseSession().catch(() => {});
     window.localStorage.removeItem(AUTH_COLLECTOR_SESSION_KEY);
     setCollectorSession(null);
     setView("login");
     navigateTo({ view: "login" });
-  }
+  }, []);
+
+  useEffect(() => {
+    if (!activeSessionType) {
+      idleDeadlineRef.current = 0;
+      idleLogoutPendingRef.current = false;
+      setRemainingSeconds(0);
+      return;
+    }
+
+    const resetIdleDeadline = () => {
+      idleDeadlineRef.current = Date.now() + SESSION_IDLE_TIMEOUT_MS;
+    };
+
+    resetIdleDeadline();
+    setRemainingSeconds(Math.ceil(SESSION_IDLE_TIMEOUT_MS / 1000));
+
+    const activityEvents = ["pointerdown", "mousemove", "keydown", "scroll", "touchstart"];
+    const handleActivity = () => {
+      if (idleLogoutPendingRef.current) {
+        return;
+      }
+
+      resetIdleDeadline();
+    };
+
+    activityEvents.forEach((eventName) =>
+      window.addEventListener(eventName, handleActivity, { passive: true }),
+    );
+
+    return () => {
+      activityEvents.forEach((eventName) =>
+        window.removeEventListener(eventName, handleActivity),
+      );
+    };
+  }, [activeSessionType]);
+
+  useEffect(() => {
+    if (!activeSessionType) {
+      return undefined;
+    }
+
+    const tick = () => {
+      const remainingMs = Math.max(0, idleDeadlineRef.current - Date.now());
+      const nextRemainingSeconds = Math.ceil(remainingMs / 1000);
+      setRemainingSeconds(nextRemainingSeconds);
+
+      if (remainingMs > 0 || idleLogoutPendingRef.current) {
+        return;
+      }
+
+      idleLogoutPendingRef.current = true;
+      Promise.resolve(handleCollectorLogout()).finally(() => {
+        idleLogoutPendingRef.current = false;
+      });
+    };
+
+    tick();
+    const intervalId = window.setInterval(tick, 1000);
+    return () => window.clearInterval(intervalId);
+  }, [activeSessionType, handleCollectorLogout]);
 
   useEffect(() => {
     // 문서 제목을 현재 사용자 흐름에 맞춰 로그인, 수집, 대시보드 상태로 구분하는 처리임.
@@ -314,7 +387,11 @@ export default function App() {
     document.title = "WithCue 데이터 수집 - 로그인";
   }, [authSession, collectorSession, currentPage.title, view]);
 
-  if (getSessionRoles(authSession).includes("admin")) {
+  const logoutCountdownLabel = activeSessionType
+    ? formatLogoutCountdown(remainingSeconds)
+    : "";
+
+  if (sessionRoles.includes("admin")) {
     return (
       <main className="dashboard">
         <section className="command-board">
@@ -358,6 +435,7 @@ export default function App() {
         session={collectorSession}
         profile={authProfile}
         onLogout={handleCollectorLogout}
+        logoutCountdownLabel={logoutCountdownLabel}
       />
     );
   }

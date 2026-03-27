@@ -20,7 +20,9 @@ function getSupportedMimeType() {
     return "";
   }
 
-  return RECORDER_CANDIDATES.find((candidate) => window.MediaRecorder.isTypeSupported(candidate)) || "";
+  return (
+    RECORDER_CANDIDATES.find((candidate) => window.MediaRecorder.isTypeSupported(candidate)) || ""
+  );
 }
 
 function downloadBlobFile(blob, fileName) {
@@ -32,7 +34,7 @@ function downloadBlobFile(blob, fileName) {
   URL.revokeObjectURL(url);
 }
 
-export function CollectionPage({ session, profile, onLogout }) {
+export function CollectionPage({ session, profile, onLogout, logoutCountdownLabel }) {
   const videoRef = useRef(null);
   const streamRef = useRef(null);
   const mediaRecorderRef = useRef(null);
@@ -54,11 +56,12 @@ export function CollectionPage({ session, profile, onLogout }) {
     () => BODY_PART_OPTIONS.find((option) => option.key === selectedBodyPartKey) || BODY_PART_OPTIONS[0],
     [selectedBodyPartKey],
   );
+  const recordingStatusLabel = `${displayProfile?.name || "참여자"}님 ${activeBodyPart.label} 녹화중`;
 
   useEffect(() => {
-    // 같은 사용자-지점 조합의 첫 동의만 기록함.
+    // 같은 사용자와 지점 조합은 첫 참여만 기록함.
     ensureCollectorConsentAtLocation(session).catch(() => {
-      // 동의 기록 실패가 촬영 자체를 막지는 않게 둠.
+      // 동의 기록 실패가 촬영 자체를 막지 않도록 둠.
     });
   }, [session]);
 
@@ -97,10 +100,12 @@ export function CollectionPage({ session, profile, onLogout }) {
         }
 
         setIsCameraReady(true);
-        setStatusMessage("카메라 연결이 완료되었습니다. 촬영 부위를 선택하고 녹화를 시작해 주세요.");
-      } catch (error) {
+        setStatusMessage("카메라 연결이 완료되었습니다.");
+      } catch {
         setIsCameraReady(false);
-        setErrorMessage("카메라를 사용할 수 없습니다. 브라우저 권한과 장치 연결 상태를 확인해 주세요.");
+        setErrorMessage(
+          "카메라를 사용할 수 없습니다. 브라우저 권한과 장치 연결 상태를 확인해 주세요.",
+        );
         setStatusMessage("");
       }
     }
@@ -163,7 +168,7 @@ export function CollectionPage({ session, profile, onLogout }) {
           });
 
           setDownloadMessage("녹화 파일 저장과 집계 반영이 완료되었습니다.");
-          setStatusMessage("다음 촬영을 계속 진행할 수 있습니다.");
+          setStatusMessage("다음 촬영을 이어서 진행할 수 있습니다.");
         } catch (error) {
           setErrorMessage(error?.message || "녹화 저장 중 오류가 발생했습니다.");
           setStatusMessage("오류 내용을 확인해 주세요.");
@@ -175,8 +180,8 @@ export function CollectionPage({ session, profile, onLogout }) {
 
       mediaRecorder.start();
       setIsRecording(true);
-      setStatusMessage(`${activeBodyPart.label} 녹화 중입니다.`);
-    } catch (error) {
+      setStatusMessage(`${activeBodyPart.label} 녹화를 시작했습니다.`);
+    } catch {
       setErrorMessage("브라우저에서 녹화를 시작할 수 없습니다.");
     }
   }
@@ -196,11 +201,10 @@ export function CollectionPage({ session, profile, onLogout }) {
           <div className="collection-title">
             <p className="info-card__kicker">COLLECTION</p>
             <h1>데이터 수집</h1>
-            <p className="collection-description">
-              노트북 브라우저에서 바로 카메라를 연결하고 녹화 파일을 내려받는 수집 흐름입니다.
-            </p>
+            {isRecording ? <p className="collection-recording-badge">{recordingStatusLabel}</p> : null}
           </div>
 
+          <span className="session-expiry">{logoutCountdownLabel}</span>
           <button type="button" className="dashboard-logout" onClick={onLogout}>
             로그아웃
           </button>
@@ -218,9 +222,6 @@ export function CollectionPage({ session, profile, onLogout }) {
             <div className="collection-panel__header">
               <div>
                 <h2>카메라 미리보기</h2>
-                <p className="collection-panel__description">
-                  브라우저에서 직접 카메라를 열고 현재 촬영 상태를 확인하는 영역입니다.
-                </p>
               </div>
 
               <label className="collection-device-field">
@@ -259,10 +260,6 @@ export function CollectionPage({ session, profile, onLogout }) {
           <aside className="collection-panel collection-panel--actions">
             <div>
               <h2>촬영 부위 선택</h2>
-              <p className="collection-panel__description">
-                촬영할 부위를 먼저 고르고 녹화를 시작한 뒤 종료하면 파일 저장과 집계 반영이 함께
-                진행됩니다.
-              </p>
             </div>
 
             <div className="collection-body-grid">
@@ -284,9 +281,6 @@ export function CollectionPage({ session, profile, onLogout }) {
             <div className="collection-action-box">
               <p className="collection-action-box__label">현재 선택 부위</p>
               <strong className="collection-action-box__value">{activeBodyPart.label}</strong>
-              <p className="collection-action-box__hint">
-                녹화 파일은 브라우저 다운로드로 저장되고, 완료 시 집계에도 즉시 반영됩니다.
-              </p>
             </div>
 
             <div className="collection-action-row">

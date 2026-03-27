@@ -85,6 +85,21 @@ body::before {
   cursor: pointer;
 }
 
+.session-expiry {
+  display: inline-flex;
+  align-items: center;
+  min-height: 48px;
+  margin-left: auto;
+  padding: 0 16px;
+  border: 1px solid rgba(95, 202, 255, 0.18);
+  border-radius: 16px;
+  background: rgba(12, 35, 64, 0.62);
+  color: var(--muted);
+  font-size: 0.95rem;
+  font-weight: 800;
+  white-space: nowrap;
+}
+
 .eyebrow {
   margin: 0 0 8px;
   font-size: 12px;
@@ -767,6 +782,22 @@ body::before {
   color: var(--text);
 }
 
+.collection-recording-badge {
+  display: inline-flex;
+  align-items: center;
+  min-height: 54px;
+  margin: 0;
+  padding: 0 18px;
+  border: 1px solid rgba(255, 120, 120, 0.55);
+  border-radius: 999px;
+  background: linear-gradient(90deg, rgba(182, 21, 44, 0.96), rgba(255, 82, 82, 0.92));
+  color: #fff4f4;
+  font-size: 1.05rem;
+  font-weight: 900;
+  letter-spacing: -0.01em;
+  box-shadow: 0 0 0 6px rgba(255, 82, 82, 0.12);
+}
+
 .collection-description {
   margin: 0;
   max-width: 760px;
@@ -997,6 +1028,11 @@ body::before {
 
   .board-header {
     display: block;
+  }
+
+  .session-expiry {
+    margin-top: 12px;
+    margin-left: 0;
   }
 
   .bodymap-stage {
