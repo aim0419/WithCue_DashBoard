@@ -115,6 +115,20 @@ body::before {
   line-height: 1.6;
 }
 
+.hero__description,
+.auth-form-description,
+.auth-field__hint,
+.auth-consent__text,
+.auth-message,
+.collection-status,
+.collection-action-box__hint,
+.collection-panel__description,
+.info-card__text {
+  word-break: keep-all;
+  overflow-wrap: break-word;
+  line-break: strict;
+}
+
 .visually-hidden {
   position: absolute;
   width: 1px;
