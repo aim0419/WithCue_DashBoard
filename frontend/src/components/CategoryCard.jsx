@@ -2,29 +2,30 @@ import { categoryPages, postureFilterMeta } from "../data/dashboard-meta.js";
 
 export function CategoryCard({ pageKey, postureType, onNavigatePage, onChangePostureType }) {
   return (
-    <article className="info-card info-card--secondary">
-      <p className="info-card__kicker">CATEGORY</p>
-      <h2 className="info-card__title">카테고리</h2>
-      <div className="info-card__category-list">
-        {Object.entries(categoryPages).map(([key, item]) => (
-          <button
-            type="button"
-            className={`category-link${key === pageKey ? " is-active" : ""}`}
-            key={key}
-            onClick={() => onNavigatePage?.(key)}
-          >
-            {item.label}
-          </button>
-        ))}
+    <section className="board-filter-bar" aria-label="대시보드 필터">
+      <div className="board-filter-group">
+        <p className="board-filter-group__label">카테고리</p>
+        <div className="board-filter-group__actions">
+          {Object.entries(categoryPages).map(([key, item]) => (
+            <button
+              type="button"
+              className={`category-link category-link--compact${key === pageKey ? " is-active" : ""}`}
+              key={key}
+              onClick={() => onNavigatePage?.(key)}
+            >
+              {item.label}
+            </button>
+          ))}
+        </div>
       </div>
 
-      <div className="info-card__filter-block">
-        <p className="info-card__subheading">데이터 보기</p>
-        <div className="info-card__category-list info-card__category-list--triple">
+      <div className="board-filter-group">
+        <p className="board-filter-group__label">데이터 보기</p>
+        <div className="board-filter-group__actions">
           {Object.entries(postureFilterMeta).map(([key, item]) => (
             <button
               type="button"
-              className={`category-link${key === postureType ? " is-active" : ""}`}
+              className={`category-link category-link--compact${key === postureType ? " is-active" : ""}`}
               key={key}
               onClick={() => onChangePostureType?.(key)}
             >
@@ -33,6 +34,6 @@ export function CategoryCard({ pageKey, postureType, onNavigatePage, onChangePos
           ))}
         </div>
       </div>
-    </article>
+    </section>
   );
 }

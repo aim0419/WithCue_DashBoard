@@ -42,6 +42,15 @@ export function AdminDashboardPage({
           </div>
         </header>
 
+        <div className="board-toolbar">
+          <CategoryCard
+            pageKey={pageKey}
+            postureType={postureType}
+            onNavigatePage={onNavigatePage}
+            onChangePostureType={onChangePostureType}
+          />
+        </div>
+
         <section className="board-layout">
           <aside className="info-panel">
             <SummaryPanel
@@ -52,12 +61,6 @@ export function AdminDashboardPage({
               locations={filteredLocations}
               data={dashboardData}
               onCyclePostureType={onCyclePostureType}
-            />
-            <CategoryCard
-              pageKey={pageKey}
-              postureType={postureType}
-              onNavigatePage={onNavigatePage}
-              onChangePostureType={onChangePostureType}
             />
           </aside>
 
