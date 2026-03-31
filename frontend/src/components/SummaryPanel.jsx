@@ -4,8 +4,19 @@ function formatNumber(value, suffix) {
   return `${value}${suffix}`;
 }
 
-function createDonutBackground(metricKey, locations) {
-  const total = locations.reduce((sum, location) => sum + Number(location[metricKey] || 0), 0);
+function getMetricValue(location, metricKey, postureType) {
+  if (postureType && postureType !== "all") {
+    return Number(location?.Variants?.[postureType]?.[metricKey] || 0);
+  }
+
+  return Number(location?.[metricKey] || 0);
+}
+
+function createDonutBackground(metricKey, locations, postureType) {
+  const total = locations.reduce(
+    (sum, location) => sum + getMetricValue(location, metricKey, postureType),
+    0,
+  );
 
   if (!total) {
     return "conic-gradient(rgba(255,255,255,0.08) 0 100%)";
@@ -13,7 +24,7 @@ function createDonutBackground(metricKey, locations) {
 
   let currentAngle = 0;
   const segments = locations.map((location, index) => {
-    const ratio = (Number(location[metricKey] || 0) / total) * 360;
+    const ratio = (getMetricValue(location, metricKey, postureType) / total) * 360;
     const start = currentAngle;
     const end = currentAngle + ratio;
     currentAngle = end;
@@ -91,7 +102,7 @@ export function SummaryPanel({
               <p className="donut-block__label">총 세션 데이터</p>
               <div
                 className="donut-chart"
-                style={{ background: createDonutBackground("SessionCount", locations) }}
+                style={{ background: createDonutBackground("SessionCount", locations, postureType) }}
               />
               <strong className="donut-total">{formatNumber(displayedSessionCount, "건")}</strong>
             </div>
@@ -100,7 +111,7 @@ export function SummaryPanel({
               <p className="donut-block__label">개인정보 동의</p>
               <div
                 className="donut-chart"
-                style={{ background: createDonutBackground("ConsentCount", locations) }}
+                style={{ background: createDonutBackground("ConsentCount", locations, postureType) }}
               />
               <strong className="donut-total">{formatNumber(displayedConsentCount, "명")}</strong>
             </div>
@@ -108,7 +119,11 @@ export function SummaryPanel({
             <div className="donut-legend">
               {locations.map((location, index) => {
                 const ratio = displayedSessionCount
-                  ? Math.round((Number(location.SessionCount || 0) / displayedSessionCount) * 100)
+                  ? Math.round(
+                      (getMetricValue(location, "SessionCount", postureType) /
+                        displayedSessionCount) *
+                        100,
+                    )
                   : 0;
 
                 return (
