@@ -3,6 +3,7 @@ import { BODY_PART_OPTIONS, LOCATION_META } from "./collection-service.js";
 import { getFirebaseDb, waitForFirebaseAuthReady } from "./firebase-client.js";
 
 const LOCATION_ORDER = ["jangdeok", "hyocheon", "aim"];
+const POSTURE_TYPES = ["all", "correct", "incorrect"];
 
 function createEmptyBodyParts() {
   return BODY_PART_OPTIONS.reduce((accumulator, bodyPart) => {
@@ -21,6 +22,14 @@ function createLocationBucket(locationKey) {
     ConsentCount: 0,
     SessionCount: 0,
     BodyParts: createEmptyBodyParts(),
+    Variants: POSTURE_TYPES.reduce((accumulator, postureType) => {
+      accumulator[postureType] = {
+        ConsentCount: 0,
+        SessionCount: 0,
+        BodyParts: createEmptyBodyParts(),
+      };
+      return accumulator;
+    }, {}),
   };
 }
 
@@ -36,6 +45,28 @@ function createEmptyDashboardData() {
     locations,
     recentAdjustments: [],
   };
+}
+
+function normalizePostureType(value) {
+  return value === "incorrect" ? "incorrect" : "correct";
+}
+
+function incrementConsent(locationBucket, postureType, amount) {
+  locationBucket.ConsentCount += amount;
+  locationBucket.Variants.all.ConsentCount += amount;
+  locationBucket.Variants[postureType].ConsentCount += amount;
+}
+
+function incrementSession(locationBucket, postureType, bodyPartKey, amount) {
+  locationBucket.SessionCount += amount;
+  locationBucket.Variants.all.SessionCount += amount;
+  locationBucket.Variants[postureType].SessionCount += amount;
+
+  if (Object.prototype.hasOwnProperty.call(locationBucket.BodyParts, bodyPartKey)) {
+    locationBucket.BodyParts[bodyPartKey] += amount;
+    locationBucket.Variants.all.BodyParts[bodyPartKey] += amount;
+    locationBucket.Variants[postureType].BodyParts[bodyPartKey] += amount;
+  }
 }
 
 function sortAdjustmentDocs(adjustmentDocs) {
@@ -54,47 +85,44 @@ function aggregateDashboard(participantDocs, sessionDocs, adjustmentDocs) {
   participantDocs.forEach((snapshotDoc) => {
     const data = snapshotDoc.data();
     const locationKey = data.Location;
+    const postureType = normalizePostureType(data.PostureType);
 
     if (!locationMap.has(locationKey)) {
       return;
     }
 
-    locationMap.get(locationKey).ConsentCount += 1;
+    incrementConsent(locationMap.get(locationKey), postureType, 1);
   });
 
   sessionDocs.forEach((snapshotDoc) => {
     const data = snapshotDoc.data();
     const locationKey = data.Location;
     const bodyPartKey = data.BodyPart;
+    const postureType = normalizePostureType(data.PostureType);
 
     if (!locationMap.has(locationKey)) {
       return;
     }
 
     const locationBucket = locationMap.get(locationKey);
-    locationBucket.SessionCount += 1;
-
-    if (Object.prototype.hasOwnProperty.call(locationBucket.BodyParts, bodyPartKey)) {
-      locationBucket.BodyParts[bodyPartKey] += 1;
-    }
+    incrementSession(locationBucket, postureType, bodyPartKey, 1);
   });
 
   adjustmentDocs.forEach((snapshotDoc) => {
     const data = snapshotDoc.data();
     const locationKey = data.Location;
     const bodyPartKey = data.BodyPart;
+    const postureType = normalizePostureType(data.PostureType);
+    const consentDelta = Number(data.ConsentDelta || 0);
+    const sessionDelta = Number(data.SessionDelta || 0);
 
     if (!locationMap.has(locationKey)) {
       return;
     }
 
     const locationBucket = locationMap.get(locationKey);
-    locationBucket.ConsentCount += Number(data.ConsentDelta || 0);
-    locationBucket.SessionCount += Number(data.SessionDelta || 0);
-
-    if (Object.prototype.hasOwnProperty.call(locationBucket.BodyParts, bodyPartKey)) {
-      locationBucket.BodyParts[bodyPartKey] += Number(data.SessionDelta || 0);
-    }
+    incrementConsent(locationBucket, postureType, consentDelta);
+    incrementSession(locationBucket, postureType, bodyPartKey, sessionDelta);
   });
 
   const locations = LOCATION_ORDER.map((locationKey) => locationMap.get(locationKey));

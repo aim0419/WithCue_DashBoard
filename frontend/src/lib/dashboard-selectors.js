@@ -11,26 +11,49 @@ export function getFilteredLocations(locations, pageLocationName) {
   return locations.filter((location) => location.Name === pageLocationName);
 }
 
-// 지점별 동의 인원 수를 합산함.
-export function getDisplayedConsentCount(locations) {
-  return locations.reduce((total, location) => total + Number(location.ConsentCount || 0), 0);
+function getSelectedVariant(location, postureType) {
+  if (postureType === "correct" || postureType === "incorrect") {
+    return location?.Variants?.[postureType] || {
+      ConsentCount: 0,
+      SessionCount: 0,
+      BodyParts: {},
+    };
+  }
+
+  return {
+    ConsentCount: Number(location?.ConsentCount || 0),
+    SessionCount: Number(location?.SessionCount || 0),
+    BodyParts: location?.BodyParts || {},
+  };
 }
 
-// 지점별 세션 건수를 합산함.
-export function getDisplayedSessionCount(locations) {
-  return locations.reduce((total, location) => total + Number(location.SessionCount || 0), 0);
+// 선택된 자세 필터 기준으로 동의 인원을 합산.
+export function getDisplayedConsentCount(locations, postureType = "all") {
+  return locations.reduce(
+    (total, location) => total + Number(getSelectedVariant(location, postureType).ConsentCount || 0),
+    0,
+  );
 }
 
-// 바디맵에서 쓸 부위별 수치를 한 번에 합산함.
-export function sumBodyParts(locations) {
+// 선택된 자세 필터 기준으로 세션 건수를 합산.
+export function getDisplayedSessionCount(locations, postureType = "all") {
+  return locations.reduce(
+    (total, location) => total + Number(getSelectedVariant(location, postureType).SessionCount || 0),
+    0,
+  );
+}
+
+// 바디맵에 보여줄 부위별 수치를 한 번에 합산.
+export function sumBodyParts(locations, postureType = "all") {
   return locations.reduce(
     (totals, location) => {
-      totals.Neck += Number(location.BodyParts?.Neck || 0);
-      totals.Hip += Number(location.BodyParts?.Hip || 0);
-      totals.LeftShoulder += Number(location.BodyParts?.LeftShoulder || 0);
-      totals.RightShoulder += Number(location.BodyParts?.RightShoulder || 0);
-      totals.LeftKnee += Number(location.BodyParts?.LeftKnee || 0);
-      totals.RightKnee += Number(location.BodyParts?.RightKnee || 0);
+      const bodyParts = getSelectedVariant(location, postureType).BodyParts || {};
+      totals.Neck += Number(bodyParts.Neck || 0);
+      totals.Hip += Number(bodyParts.Hip || 0);
+      totals.LeftShoulder += Number(bodyParts.LeftShoulder || 0);
+      totals.RightShoulder += Number(bodyParts.RightShoulder || 0);
+      totals.LeftKnee += Number(bodyParts.LeftKnee || 0);
+      totals.RightKnee += Number(bodyParts.RightKnee || 0);
       return totals;
     },
     {

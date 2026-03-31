@@ -1,5 +1,10 @@
 import { useMemo, useState } from "react";
-import { BODY_PART_OPTIONS, LOCATION_META } from "../lib/collection-service.js";
+import {
+  BODY_PART_OPTIONS,
+  LOCATION_META,
+  POSTURE_TYPE_OPTIONS,
+  formatPostureLabel,
+} from "../lib/collection-service.js";
 import { findUserByUserNumber } from "../lib/legacy-adjustments-service.js";
 
 const locationOptions = [
@@ -7,6 +12,8 @@ const locationOptions = [
   { value: "jangdeok", label: LOCATION_META.jangdeok.displayName },
   { value: "hyocheon", label: LOCATION_META.hyocheon.displayName },
 ];
+
+const postureOptions = POSTURE_TYPE_OPTIONS.filter((option) => option.key !== "all");
 
 function formatAdjustmentItem(item) {
   const sessionText = item.SessionDelta ? `건수 +${item.SessionDelta}` : null;
@@ -26,6 +33,7 @@ export function LegacyAdjustmentDrawer({
   const [form, setForm] = useState({
     location: "aim",
     bodyPartKey: "Neck",
+    postureType: "correct",
     sessionDelta: "30",
     consentDelta: "1",
     note: "대시보드 도입 전 수집분",
@@ -60,12 +68,12 @@ export function LegacyAdjustmentDrawer({
 
       if (!matchedUser) {
         setTargetUser(null);
-        setError("일치하는 회원번호의 사용자를 찾지 못했습니다.");
+        setError("일치하는 회원번호 사용자를 찾지 못했습니다.");
         return;
       }
 
       setTargetUser(matchedUser);
-      setMessage(`회원번호 ${matchedUser.userNumber}번 ${matchedUser.name}님을 찾았습니다.`);
+      setMessage(`회원번호 ${matchedUser.userNumber}번 ${matchedUser.name} 사용자를 찾았습니다.`);
     } catch (searchError) {
       setTargetUser(null);
       setError(searchError?.message || "회원 검색 중 오류가 발생했습니다.");
@@ -86,7 +94,7 @@ export function LegacyAdjustmentDrawer({
         consentDelta: Number(form.consentDelta || 0),
         targetUser,
       });
-      setMessage("기존 데이터 반영이 완료되었습니다.");
+      setMessage("기존 데이터를 반영했습니다.");
     } catch (submitError) {
       setError(submitError?.message || "기존 데이터 반영 중 오류가 발생했습니다.");
     }
@@ -146,7 +154,7 @@ export function LegacyAdjustmentDrawer({
               onClick={handleSearchUser}
               disabled={searching}
             >
-              {searching ? "검색 중.." : "검색"}
+              {searching ? "검색 중..." : "검색"}
             </button>
           </div>
         </div>
@@ -171,6 +179,21 @@ export function LegacyAdjustmentDrawer({
           >
             {locationOptions.map((option) => (
               <option key={option.value} value={option.value}>
+                {option.label}
+              </option>
+            ))}
+          </select>
+        </label>
+
+        <label className="auth-field">
+          <span className="auth-field__label">데이터 유형</span>
+          <select
+            className="auth-input"
+            value={form.postureType}
+            onChange={(event) => updateField("postureType", event.target.value)}
+          >
+            {postureOptions.map((option) => (
+              <option key={option.key} value={option.key}>
                 {option.label}
               </option>
             ))}
@@ -230,7 +253,7 @@ export function LegacyAdjustmentDrawer({
         {message ? <p className="auth-message auth-message--notice">{message}</p> : null}
 
         <button type="submit" className="auth-submit" disabled={submitting}>
-          {submitting ? "반영 중.." : "기존 데이터 반영"}
+          {submitting ? "반영 중..." : "기존 데이터 반영"}
         </button>
       </form>
 
@@ -253,6 +276,9 @@ export function LegacyAdjustmentDrawer({
                     {deletingAdjustmentId === item.id ? "삭제 중..." : "삭제"}
                   </button>
                 </div>
+                <span className="legacy-history__meta">
+                  유형 {item.PostureLabel || formatPostureLabel(item.PostureType)}
+                </span>
                 {item.TargetUserName ? (
                   <span className="legacy-history__meta">
                     대상 {item.TargetUserNumber}번 {item.TargetUserName}
@@ -264,7 +290,7 @@ export function LegacyAdjustmentDrawer({
             ))}
           </div>
         ) : (
-          <p className="legacy-history__empty">아직 반영된 기존 데이터가 없습니다.</p>
+          <p className="legacy-history__empty">아직 반영한 기존 데이터가 없습니다.</p>
         )}
       </div>
     </aside>

@@ -33,6 +33,12 @@ export const categoryPages = {
   },
 };
 
+export const postureFilterMeta = {
+  all: { label: "총합" },
+  correct: { label: "정답" },
+  incorrect: { label: "오답" },
+};
+
 export const bodyPartMeta = [
   { key: "Neck", label: "목", className: "body-part-card body-part-card--neck" },
   { key: "Hip", label: "허리", className: "body-part-card body-part-card--hip" },

@@ -116,6 +116,8 @@ service cloud.firestore {
           "Location",
           "LocationDocId",
           "SiteCode",
+          "PostureType",
+          "PostureCode",
           "CreatedAt",
           "UpdatedAt"
         ]) &&
@@ -127,7 +129,9 @@ service cloud.firestore {
         isValidGender(request.resource.data.Gender) &&
         isNonEmptyString(request.resource.data.Location) &&
         isNonEmptyString(request.resource.data.LocationDocId) &&
-        isNonEmptyString(request.resource.data.SiteCode);
+        isNonEmptyString(request.resource.data.SiteCode) &&
+        request.resource.data.PostureType in ["correct", "incorrect"] &&
+        request.resource.data.PostureCode in ["0", "1"];
 
       allow update, delete: if false;
     }
@@ -150,6 +154,8 @@ service cloud.firestore {
           "BodyPart",
           "BodyPartCode",
           "BodyPartLabel",
+          "PostureType",
+          "PostureCode",
           "FileName",
           "MimeType",
           "FileSize",
@@ -168,6 +174,8 @@ service cloud.firestore {
         isNonEmptyString(request.resource.data.BodyPart) &&
         isNonEmptyString(request.resource.data.BodyPartCode) &&
         isNonEmptyString(request.resource.data.BodyPartLabel) &&
+        request.resource.data.PostureType in ["correct", "incorrect"] &&
+        request.resource.data.PostureCode in ["0", "1"] &&
         isNonEmptyString(request.resource.data.FileName) &&
         isNonEmptyString(request.resource.data.MimeType) &&
         request.resource.data.FileSize is int &&
@@ -249,6 +257,9 @@ service cloud.firestore {
           "BodyPart",
           "BodyPartCode",
           "BodyPartLabel",
+          "PostureType",
+          "PostureCode",
+          "PostureLabel",
           "SessionDelta",
           "ConsentDelta",
           "Note",
@@ -267,6 +278,9 @@ service cloud.firestore {
         isNonEmptyString(request.resource.data.BodyPart) &&
         isNonEmptyString(request.resource.data.BodyPartCode) &&
         isNonEmptyString(request.resource.data.BodyPartLabel) &&
+        request.resource.data.PostureType in ["correct", "incorrect"] &&
+        request.resource.data.PostureCode in ["0", "1"] &&
+        isNonEmptyString(request.resource.data.PostureLabel) &&
         request.resource.data.SessionDelta is int &&
         request.resource.data.SessionDelta >= 0 &&
         request.resource.data.ConsentDelta is int &&

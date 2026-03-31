@@ -9,7 +9,11 @@ import {
   serverTimestamp,
   where,
 } from "firebase/firestore";
-import { BODY_PART_OPTIONS, LOCATION_META } from "./collection-service.js";
+import {
+  BODY_PART_OPTIONS,
+  LOCATION_META,
+  formatPostureLabel,
+} from "./collection-service.js";
 import { getFirebaseDb, waitForFirebaseAuthReady } from "./firebase-client.js";
 
 const BODY_PART_CODE_MAP = {
@@ -27,6 +31,10 @@ function getLocationMeta(locationKey) {
 
 function getBodyPartOption(bodyPartKey) {
   return BODY_PART_OPTIONS.find((option) => option.key === bodyPartKey) || BODY_PART_OPTIONS[0];
+}
+
+function normalizePostureType(value) {
+  return value === "incorrect" ? "incorrect" : "correct";
 }
 
 export async function findUserByUserNumber(userNumber) {
@@ -67,6 +75,7 @@ export async function createLegacyAdjustment({
   adminSession,
   location,
   bodyPartKey,
+  postureType,
   sessionDelta,
   consentDelta,
   note,
@@ -77,6 +86,7 @@ export async function createLegacyAdjustment({
   const db = getFirebaseDb();
   const locationMeta = getLocationMeta(location);
   const bodyPartOption = getBodyPartOption(bodyPartKey);
+  const normalizedPostureType = normalizePostureType(postureType);
   const normalizedSessionDelta = Number(sessionDelta || 0);
   const normalizedConsentDelta = Number(consentDelta || 0);
 
@@ -95,6 +105,9 @@ export async function createLegacyAdjustment({
     BodyPart: bodyPartKey,
     BodyPartCode: BODY_PART_CODE_MAP[bodyPartKey] || "00",
     BodyPartLabel: bodyPartOption.label,
+    PostureType: normalizedPostureType,
+    PostureCode: normalizedPostureType === "incorrect" ? "1" : "0",
+    PostureLabel: formatPostureLabel(normalizedPostureType),
     SessionDelta: normalizedSessionDelta,
     ConsentDelta: normalizedConsentDelta,
     Note: String(note || "").trim(),

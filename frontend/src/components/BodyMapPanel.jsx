@@ -1,15 +1,34 @@
 import { bodyPartMeta } from "../data/dashboard-meta.js";
 
-export function BodyMapPanel({ bodyParts }) {
+function getPostureViewLabel(postureType) {
+  if (postureType === "incorrect") {
+    return "오답 그래프";
+  }
+
+  if (postureType === "correct") {
+    return "정답 그래프";
+  }
+
+  return "총합 그래프";
+}
+
+export function BodyMapPanel({ bodyParts, postureType, onCyclePostureType }) {
   return (
-    <section className="bodymap-panel" aria-label="신체 부위별 데이터 현황">
-      <div className="bodymap-stage">
+    <section className="bodymap-panel" aria-label="신체 부위 통계 데이터 현황">
+      <button
+        type="button"
+        className="bodymap-stage"
+        onClick={onCyclePostureType}
+        aria-label="그래프 보기 전환"
+        title="클릭해서 총합, 정답, 오답 그래프를 전환합니다."
+      >
         <div className="bodymap-content">
-          {/* 인체 이미지 위에 점/선/수치 카드를 겹쳐 배치하는 패널이다. */}
+          <p className="bodymap-mode-label">{getPostureViewLabel(postureType)}</p>
+
           <img
             className="body-silhouette-image"
             src="/assets/images/body.png"
-            alt="신체 부위 데이터 표시용 인체 이미지"
+            alt="신체 부위별 데이터 시각화 이미지"
           />
 
           <div className="connector connector--neck" />
@@ -28,7 +47,6 @@ export function BodyMapPanel({ bodyParts }) {
 
           <div className="body-part-grid">
             {bodyPartMeta.map((part) => (
-              // 부위 메타데이터를 순회하면서 동일한 카드 구조를 재사용한다.
               <article className={part.className} key={part.key}>
                 <p className="body-part-card__label">{part.label}</p>
                 <strong className="body-part-card__value">{bodyParts[part.key] || 0}건</strong>
@@ -36,7 +54,7 @@ export function BodyMapPanel({ bodyParts }) {
             ))}
           </div>
         </div>
-      </div>
+      </button>
     </section>
   );
 }

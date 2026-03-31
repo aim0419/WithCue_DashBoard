@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { AdminDashboardPage } from "./components/AdminDashboardPage.jsx";
 import { AuthPage } from "./components/AuthPage.jsx";
 import { CollectionPage } from "./components/CollectionPage.jsx";
+import { PostureSelectPage } from "./components/PostureSelectPage.jsx";
 import { categoryPages, pageMeta } from "./data/dashboard-meta.js";
 import { useDashboardData } from "./hooks/useDashboardData.js";
 import { useIdleLogout } from "./hooks/useIdleLogout.js";
@@ -20,6 +21,7 @@ import {
 const AUTH_PROFILE_KEY = "withcue-auth-profile";
 const AUTH_ADMIN_SESSION_KEY = "withcue-admin-session";
 const AUTH_COLLECTOR_SESSION_KEY = "withcue-collector-session";
+const POSTURE_FILTERS = ["all", "correct", "incorrect"];
 
 function getSessionRoles(session) {
   if (Array.isArray(session?.roles) && session.roles.length > 0) {
@@ -40,7 +42,9 @@ function getSessionRoles(session) {
 function getViewFromLocation() {
   const params = new URLSearchParams(window.location.search);
   const view = params.get("view") || "login";
-  return ["dashboard", "login", "signup", "admin-login", "collect"].includes(view)
+  return ["dashboard", "login", "signup", "admin-login", "answer-select", "collect"].includes(
+    view,
+  )
     ? view
     : "login";
 }
@@ -49,6 +53,12 @@ function getPageKeyFromLocation() {
   const params = new URLSearchParams(window.location.search);
   const page = params.get("page") || "main";
   return pageMeta[page] ? page : "main";
+}
+
+function getPostureFilterFromLocation() {
+  const params = new URLSearchParams(window.location.search);
+  const posture = params.get("posture") || "all";
+  return POSTURE_FILTERS.includes(posture) ? posture : "all";
 }
 
 function readJsonFromStorage(key) {
@@ -65,9 +75,24 @@ function navigateTo(paramsObject) {
   window.history.replaceState({}, "", `/?${params.toString()}`);
 }
 
+function persistCollectorSession(session) {
+  window.localStorage.setItem(AUTH_COLLECTOR_SESSION_KEY, JSON.stringify(session));
+}
+
+function hasSelectedPostureType(session) {
+  return session?.postureType === "correct" || session?.postureType === "incorrect";
+}
+
+function getNextPostureFilter(currentPostureType) {
+  const currentIndex = POSTURE_FILTERS.indexOf(currentPostureType);
+  const nextIndex = currentIndex >= 0 ? (currentIndex + 1) % POSTURE_FILTERS.length : 0;
+  return POSTURE_FILTERS[nextIndex];
+}
+
 export default function App() {
   const [view, setView] = useState(getViewFromLocation());
   const [pageKey, setPageKey] = useState(getPageKeyFromLocation());
+  const [postureFilter, setPostureFilter] = useState(getPostureFilterFromLocation());
   const [authProfile, setAuthProfile] = useState(() => readJsonFromStorage(AUTH_PROFILE_KEY));
   const [authSession, setAuthSession] = useState(() => readJsonFromStorage(AUTH_ADMIN_SESSION_KEY));
   const [collectorSession, setCollectorSession] = useState(() =>
@@ -87,6 +112,7 @@ export default function App() {
     const handleLocationChange = () => {
       setView(getViewFromLocation());
       setPageKey(getPageKeyFromLocation());
+      setPostureFilter(getPostureFilterFromLocation());
     };
 
     window.addEventListener("popstate", handleLocationChange);
@@ -111,10 +137,11 @@ export default function App() {
       return;
     }
 
-    if (["login", "signup", "admin-login", "collect"].includes(view)) {
+    if (["login", "signup", "admin-login", "answer-select", "collect"].includes(view)) {
       setView("dashboard");
       setPageKey("main");
-      navigateTo({ page: "main" });
+      setPostureFilter("all");
+      navigateTo({ page: "main", posture: "all" });
     }
   }, [authSession, hasAdminSession, view]);
 
@@ -123,15 +150,32 @@ export default function App() {
       return;
     }
 
-    if (!collectorSession && view === "collect") {
+    if (!collectorSession && ["answer-select", "collect"].includes(view)) {
       setView("login");
       navigateTo({ view: "login" });
       return;
     }
 
-    if (collectorSession && ["login", "signup", "admin-login"].includes(view)) {
-      setView("collect");
-      navigateTo({ view: "collect" });
+    if (!collectorSession) {
+      return;
+    }
+
+    const collectorReady = hasSelectedPostureType(collectorSession);
+
+    if (!collectorReady && view === "collect") {
+      setView("answer-select");
+      navigateTo({ view: "answer-select" });
+      return;
+    }
+
+    if (["login", "signup", "admin-login"].includes(view)) {
+      setView(collectorReady ? "collect" : "answer-select");
+      navigateTo({ view: collectorReady ? "collect" : "answer-select" });
+      return;
+    }
+
+    if (collectorReady && view === "answer-select") {
+      return;
     }
   }, [collectorSession, hasAdminSession, view]);
 
@@ -151,14 +195,17 @@ export default function App() {
   );
 
   const displayedConsentCount = useMemo(
-    () => getDisplayedConsentCount(filteredLocations),
-    [filteredLocations],
+    () => getDisplayedConsentCount(filteredLocations, postureFilter),
+    [filteredLocations, postureFilter],
   );
   const displayedSessionCount = useMemo(
-    () => getDisplayedSessionCount(filteredLocations),
-    [filteredLocations],
+    () => getDisplayedSessionCount(filteredLocations, postureFilter),
+    [filteredLocations, postureFilter],
   );
-  const displayedBodyParts = useMemo(() => sumBodyParts(filteredLocations), [filteredLocations]);
+  const displayedBodyParts = useMemo(
+    () => sumBodyParts(filteredLocations, postureFilter),
+    [filteredLocations, postureFilter],
+  );
 
   async function handleSignup(form) {
     try {
@@ -171,9 +218,7 @@ export default function App() {
       const profile = result.profile;
       window.localStorage.setItem(AUTH_PROFILE_KEY, JSON.stringify(profile));
       setAuthProfile(profile);
-      setAuthNotice(
-        result.message || "회원가입이 완료되었습니다. 같은 정보로 로그인하면 수집 화면으로 이동합니다.",
-      );
+      setAuthNotice(result.message || "회원가입이 완료되었습니다. 같은 정보로 로그인해 주세요.");
       setView("login");
       navigateTo({ view: "login" });
       return { ok: true };
@@ -199,7 +244,7 @@ export default function App() {
       if (mode === "admin-login" && !nextSessionRoles.includes("admin")) {
         return {
           ok: false,
-          message: "관리자 대시보드는 관리자 계정으로만 접근 가능합니다.",
+          message: "관리자 대시보드는 관리자 계정으로만 접근할 수 있습니다.",
         };
       }
 
@@ -222,22 +267,21 @@ export default function App() {
         setAuthSession(adminSession);
         setView("dashboard");
         setPageKey("main");
-        navigateTo({ page: "main" });
+        setPostureFilter("all");
+        navigateTo({ page: "main", posture: "all" });
       } else {
         const collectorSessionData = {
           ...session,
           role: nextSessionRoles.includes("collector") ? "collector" : session.role,
           roles: nextSessionRoles,
+          postureType: "",
         };
         window.localStorage.removeItem(AUTH_ADMIN_SESSION_KEY);
-        window.localStorage.setItem(
-          AUTH_COLLECTOR_SESSION_KEY,
-          JSON.stringify(collectorSessionData),
-        );
+        persistCollectorSession(collectorSessionData);
         setAuthSession(null);
         setCollectorSession(collectorSessionData);
-        setView("collect");
-        navigateTo({ view: "collect" });
+        setView("answer-select");
+        navigateTo({ view: "answer-select" });
       }
 
       return { ok: true };
@@ -252,7 +296,18 @@ export default function App() {
   function handleNavigatePage(nextPageKey) {
     setPageKey(nextPageKey);
     setView("dashboard");
-    navigateTo({ page: nextPageKey });
+    navigateTo({ page: nextPageKey, posture: postureFilter });
+  }
+
+  function handleChangePostureType(nextPostureType) {
+    setPostureFilter(nextPostureType);
+    setView("dashboard");
+    navigateTo({ page: pageKey, posture: nextPostureType });
+  }
+
+  function handleCyclePostureType() {
+    const nextPostureType = getNextPostureFilter(postureFilter);
+    handleChangePostureType(nextPostureType);
   }
 
   const handleAdminLogout = useCallback(async () => {
@@ -273,9 +328,25 @@ export default function App() {
   }, []);
 
   const logoutCountdownLabel = useIdleLogout({
-    enabled: isCollectorSession,
+    enabled: isCollectorSession && view === "collect",
     onLogout: handleCollectorLogout,
   });
+
+  const handleSelectPostureType = useCallback(
+    (nextPostureType) => {
+      const normalizedPostureType = nextPostureType === "incorrect" ? "incorrect" : "correct";
+      const nextSession = {
+        ...collectorSession,
+        postureType: normalizedPostureType,
+      };
+
+      setCollectorSession(nextSession);
+      persistCollectorSession(nextSession);
+      setView("collect");
+      navigateTo({ view: "collect" });
+    },
+    [collectorSession],
+  );
 
   const handleSubmitAdjustment = useCallback(
     async (form) => {
@@ -286,6 +357,7 @@ export default function App() {
           adminSession: authSession,
           location: form.location,
           bodyPartKey: form.bodyPartKey,
+          postureType: form.postureType,
           sessionDelta: form.sessionDelta,
           consentDelta: form.consentDelta,
           note: form.note,
@@ -320,7 +392,7 @@ export default function App() {
     }
 
     if (collectorSession) {
-      document.title = "WithCue 데이터 수집";
+      document.title = view === "answer-select" ? "WithCue 유형 선택" : "WithCue 데이터 수집";
       return;
     }
 
@@ -342,6 +414,7 @@ export default function App() {
       <AdminDashboardPage
         currentPage={currentPage}
         pageKey={pageKey}
+        postureType={postureFilter}
         displayedSessionCount={displayedSessionCount}
         displayedConsentCount={displayedConsentCount}
         filteredLocations={filteredLocations}
@@ -349,6 +422,8 @@ export default function App() {
         displayedBodyParts={displayedBodyParts}
         loading={loading}
         onNavigatePage={handleNavigatePage}
+        onChangePostureType={handleChangePostureType}
+        onCyclePostureType={handleCyclePostureType}
         onLogout={handleAdminLogout}
         adjustmentDrawerOpen={adjustmentDrawerOpen}
         onOpenAdjustmentDrawer={() => setAdjustmentDrawerOpen(true)}
@@ -362,6 +437,16 @@ export default function App() {
   }
 
   if (collectorSession) {
+    if (view === "answer-select") {
+      return (
+        <PostureSelectPage
+          session={collectorSession}
+          onLogout={handleCollectorLogout}
+          onSelect={handleSelectPostureType}
+        />
+      );
+    }
+
     return (
       <CollectionPage
         session={collectorSession}

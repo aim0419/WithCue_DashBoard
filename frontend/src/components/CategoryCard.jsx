@@ -1,6 +1,6 @@
-import { categoryPages } from "../data/dashboard-meta.js";
+import { categoryPages, postureFilterMeta } from "../data/dashboard-meta.js";
 
-export function CategoryCard({ pageKey, onNavigatePage }) {
+export function CategoryCard({ pageKey, postureType, onNavigatePage, onChangePostureType }) {
   return (
     <article className="info-card info-card--secondary">
       <p className="info-card__kicker">CATEGORY</p>
@@ -16,6 +16,22 @@ export function CategoryCard({ pageKey, onNavigatePage }) {
             {item.label}
           </button>
         ))}
+      </div>
+
+      <div className="info-card__filter-block">
+        <p className="info-card__subheading">데이터 보기</p>
+        <div className="info-card__category-list info-card__category-list--triple">
+          {Object.entries(postureFilterMeta).map(([key, item]) => (
+            <button
+              type="button"
+              className={`category-link${key === postureType ? " is-active" : ""}`}
+              key={key}
+              onClick={() => onChangePostureType?.(key)}
+            >
+              {item.label}
+            </button>
+          ))}
+        </div>
       </div>
     </article>
   );

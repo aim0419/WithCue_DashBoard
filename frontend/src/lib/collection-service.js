@@ -42,6 +42,12 @@ export const BODY_PART_OPTIONS = [
   { key: "RightKnee", label: "오른쪽 무릎", fileSegment: "right-knee" },
 ];
 
+export const POSTURE_TYPE_OPTIONS = [
+  { key: "all", label: "총합", codeSuffix: "" },
+  { key: "correct", label: "정답", codeSuffix: "" },
+  { key: "incorrect", label: "오답", codeSuffix: "1" },
+];
+
 const BODY_PART_CODE_MAP = {
   Neck: "01",
   Hip: "02",
@@ -59,6 +65,15 @@ const EMPTY_BODY_PARTS = {
   RightKnee: 0,
   RightShoulder: 0,
 };
+
+function normalizePostureType(value) {
+  return value === "incorrect" ? "incorrect" : "correct";
+}
+
+function getPostureCode(bodyPartKey, postureType) {
+  const baseCode = BODY_PART_CODE_MAP[bodyPartKey] || "00";
+  return normalizePostureType(postureType) === "incorrect" ? `${baseCode}1` : baseCode;
+}
 
 function getLocationMeta(locationKey) {
   return LOCATION_META[locationKey] || LOCATION_META.aim;
@@ -182,10 +197,11 @@ export async function ensureCollectorConsentAtLocation(session) {
 
     const db = getFirebaseDb();
     const locationMeta = getLocationMeta(session?.location);
+    const postureType = normalizePostureType(session?.postureType);
     const participantRef = doc(
       db,
       "locationParticipants",
-      `${session?.userId || "unknown"}_${locationMeta.docId}`,
+      `${session?.userId || "unknown"}_${locationMeta.docId}_${postureType}`,
     );
 
     const result = await runTransaction(db, async (transaction) => {
@@ -208,6 +224,8 @@ export async function ensureCollectorConsentAtLocation(session) {
         Location: session?.location || "aim",
         LocationDocId: locationMeta.docId,
         SiteCode: locationMeta.siteCode,
+        PostureType: postureType,
+        PostureCode: postureType === "incorrect" ? "1" : "0",
         CreatedAt: serverTimestamp(),
         UpdatedAt: serverTimestamp(),
       });
@@ -248,7 +266,8 @@ export async function saveCollectionRecording({
     const locationMeta = getLocationMeta(session?.location);
     const bodyPartOption =
       BODY_PART_OPTIONS.find((option) => option.key === bodyPartKey) || BODY_PART_OPTIONS[0];
-    const bodyPartCode = BODY_PART_CODE_MAP[bodyPartKey] || "00";
+    const postureType = normalizePostureType(session?.postureType);
+    const bodyPartCode = getPostureCode(bodyPartKey, postureType);
 
     const sessionDoc = await addDoc(collection(db, "collectionSessions"), {
       UserId: session?.userId || "",
@@ -263,6 +282,8 @@ export async function saveCollectionRecording({
       BodyPart: bodyPartKey,
       BodyPartCode: bodyPartCode,
       BodyPartLabel: bodyPartOption.label,
+      PostureType: postureType,
+      PostureCode: postureType === "incorrect" ? "1" : "0",
       FileName: fileName,
       MimeType: mimeType,
       FileSize: Number(size || 0),
@@ -288,10 +309,14 @@ export async function saveCollectionRecording({
 
 export function buildRecordingFileName(session, bodyPartKey) {
   const locationMeta = getLocationMeta(session?.location);
-  const bodyPartCode = BODY_PART_CODE_MAP[bodyPartKey] || "00";
+  const bodyPartCode = getPostureCode(bodyPartKey, session?.postureType);
   const memberCode = session?.memberCode || formatMemberCode(session?.userNumber);
 
   return `${locationMeta.siteCode}-${bodyPartCode}-${memberCode}.webm`;
+}
+
+export function formatPostureLabel(postureType) {
+  return normalizePostureType(postureType) === "incorrect" ? "오답" : "정답";
 }
 
 export function formatGenderLabel(gender) {

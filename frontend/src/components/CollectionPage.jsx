@@ -5,6 +5,7 @@ import {
   ensureCollectorConsentAtLocation,
   formatBirthDateChip,
   formatGenderLabel,
+  formatPostureLabel,
   getLocationChipLabel,
   saveCollectionRecording,
 } from "../lib/collection-service.js";
@@ -56,12 +57,12 @@ export function CollectionPage({ session, profile, onLogout, logoutCountdownLabe
     () => BODY_PART_OPTIONS.find((option) => option.key === selectedBodyPartKey) || BODY_PART_OPTIONS[0],
     [selectedBodyPartKey],
   );
-  const recordingStatusLabel = `${displayProfile?.name || "참여자"}님 ${activeBodyPart.label} 녹화중`;
+  const postureLabel = formatPostureLabel(session?.postureType);
+  const recordingStatusLabel = `${displayProfile?.name || "참여자"}님 ${activeBodyPart.label} ${postureLabel} 녹화중`;
 
   useEffect(() => {
-    // 같은 사용자와 지점 조합은 최초 1회만 참여 인원으로 기록함.
     ensureCollectorConsentAtLocation(session).catch(() => {
-      // 참여 기록 실패가 촬영 자체를 막지 않도록 무시함.
+      // 참여 기록 실패가 촬영 화면 자체를 막지 않도록 무시.
     });
   }, [session]);
 
@@ -180,7 +181,7 @@ export function CollectionPage({ session, profile, onLogout, logoutCountdownLabe
 
       mediaRecorder.start();
       setIsRecording(true);
-      setStatusMessage(`${activeBodyPart.label} 녹화를 시작했습니다.`);
+      setStatusMessage(`${activeBodyPart.label} ${postureLabel} 녹화를 시작했습니다.`);
     } catch {
       setErrorMessage("브라우저에서 녹화를 시작할 수 없습니다.");
     }
@@ -220,6 +221,7 @@ export function CollectionPage({ session, profile, onLogout, logoutCountdownLabe
           <span className="collection-chip">이름: {displayProfile?.name || "-"}</span>
           <span className="collection-chip">성별: {formatGenderLabel(displayProfile?.gender)}</span>
           <span className="collection-chip">생년월일: {formatBirthDateChip(displayProfile?.birthDate)}</span>
+          <span className="collection-chip">유형: {postureLabel}</span>
         </section>
 
         <section className="collection-grid">

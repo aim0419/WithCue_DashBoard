@@ -10,11 +10,17 @@ from pathlib import Path
 # 파일명 코드와 부위 폴더를 매핑함.
 BODY_PART_FOLDERS = {
     "01": "Neck",
+    "011": "Neck",
     "02": "Hip",
+    "021": "Hip",
     "03": "L_Shoulder",
+    "031": "L_Shoulder",
     "04": "R_Shoulder",
+    "041": "R_Shoulder",
     "05": "L_Knee",
+    "051": "L_Knee",
     "06": "R_Knee",
+    "061": "R_Knee",
 }
 
 # 다운로드 중간 파일 확장자를 제외함.

@@ -6,6 +6,7 @@ import { SummaryPanel } from "./SummaryPanel.jsx";
 export function AdminDashboardPage({
   currentPage,
   pageKey,
+  postureType,
   displayedSessionCount,
   displayedConsentCount,
   filteredLocations,
@@ -13,6 +14,8 @@ export function AdminDashboardPage({
   displayedBodyParts,
   loading,
   onNavigatePage,
+  onChangePostureType,
+  onCyclePostureType,
   onLogout,
   adjustmentDrawerOpen,
   onOpenAdjustmentDrawer,
@@ -43,15 +46,26 @@ export function AdminDashboardPage({
           <aside className="info-panel">
             <SummaryPanel
               pageKey={pageKey}
+              postureType={postureType}
               displayedSessionCount={displayedSessionCount}
               displayedConsentCount={displayedConsentCount}
               locations={filteredLocations}
               data={dashboardData}
+              onCyclePostureType={onCyclePostureType}
             />
-            <CategoryCard pageKey={pageKey} onNavigatePage={onNavigatePage} />
+            <CategoryCard
+              pageKey={pageKey}
+              postureType={postureType}
+              onNavigatePage={onNavigatePage}
+              onChangePostureType={onChangePostureType}
+            />
           </aside>
 
-          <BodyMapPanel bodyParts={displayedBodyParts} />
+          <BodyMapPanel
+            bodyParts={displayedBodyParts}
+            postureType={postureType}
+            onCyclePostureType={onCyclePostureType}
+          />
         </section>
 
         <LegacyAdjustmentDrawer
