@@ -11,6 +11,20 @@ export function getFilteredLocations(locations, pageLocationName) {
   return locations.filter((location) => location.Name === pageLocationName);
 }
 
+function countUniqueConsentUsers(locations) {
+  const uniqueUserIds = new Set();
+
+  locations.forEach((location) => {
+    (location?.ConsentUserIds || []).forEach((userId) => {
+      if (userId) {
+        uniqueUserIds.add(userId);
+      }
+    });
+  });
+
+  return uniqueUserIds.size;
+}
+
 function getSelectedVariant(location, postureType) {
   if (postureType === "correct" || postureType === "incorrect") {
     return location?.Variants?.[postureType] || {
@@ -28,11 +42,12 @@ function getSelectedVariant(location, postureType) {
 }
 
 // 선택된 자세 필터 기준으로 동의 인원을 합산.
-export function getDisplayedConsentCount(locations, postureType = "all") {
-  return locations.reduce(
-    (total, location) => total + Number(getSelectedVariant(location, postureType).ConsentCount || 0),
-    0,
-  );
+export function getDisplayedConsentCount(locations, overallConsentUserIds = null) {
+  if (Array.isArray(overallConsentUserIds)) {
+    return new Set(overallConsentUserIds.filter(Boolean)).size;
+  }
+
+  return countUniqueConsentUsers(locations);
 }
 
 // 선택된 자세 필터 기준으로 세션 건수를 합산.

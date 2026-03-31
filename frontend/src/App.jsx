@@ -195,8 +195,12 @@ export default function App() {
   );
 
   const displayedConsentCount = useMemo(
-    () => getDisplayedConsentCount(filteredLocations, postureFilter),
-    [filteredLocations, postureFilter],
+    () =>
+      getDisplayedConsentCount(
+        filteredLocations,
+        pageKey === "main" ? dashboardData.ConsentUserIds : null,
+      ),
+    [dashboardData.ConsentUserIds, filteredLocations, pageKey],
   );
   const displayedSessionCount = useMemo(
     () => getDisplayedSessionCount(filteredLocations, postureFilter),
