@@ -261,22 +261,8 @@ export function CollectionPage({
               <div>
                 <h2>카메라 미리보기</h2>
               </div>
-            </div>
 
-            <div className="collection-preview-frame">
-              <video ref={videoRef} className="collection-preview" autoPlay muted playsInline />
-            </div>
-
-            <div className="collection-panel__control-stack">
-              <div className="collection-recording-inline" aria-live="polite">
-                {isRecording ? (
-                  <p className="collection-recording-inline__badge">{recordingStatusLabel}</p>
-                ) : (
-                  <div className="collection-recording-inline__placeholder" />
-                )}
-              </div>
-
-              <label className="collection-device-field">
+              <label className="collection-device-field collection-device-field--inline">
                 <span>카메라 선택</span>
                 <select
                   className="auth-input"
@@ -294,6 +280,20 @@ export function CollectionPage({
                   )}
                 </select>
               </label>
+            </div>
+
+            <div className="collection-preview-frame">
+              <video ref={videoRef} className="collection-preview" autoPlay muted playsInline />
+            </div>
+
+            <div className="collection-panel__control-stack">
+              <div className="collection-recording-inline" aria-live="polite">
+                {isRecording ? (
+                  <p className="collection-recording-inline__badge">{recordingStatusLabel}</p>
+                ) : (
+                  <div className="collection-recording-inline__placeholder" />
+                )}
+              </div>
             </div>
 
             <div className="collection-status-stack">
