@@ -5,6 +5,10 @@ function formatNumber(value, suffix) {
 }
 
 function getMetricValue(location, metricKey, postureType) {
+  if (metricKey === "ConsentCount") {
+    return Number(location?.ConsentCount || 0);
+  }
+
   if (postureType && postureType !== "all") {
     return Number(location?.Variants?.[postureType]?.[metricKey] || 0);
   }
@@ -44,7 +48,7 @@ function getSyncMessage(data) {
   }
 
   if (data.source === "firebase-empty") {
-    return "Firebase 연결됨 · 초기 데이터 필요";
+    return "Firebase 연결은 완료, 초기 데이터 필요";
   }
 
   return "샘플 데이터 표시 중";
@@ -71,6 +75,10 @@ function getPostureViewMeta(postureType) {
   };
 }
 
+function getConsentLabel(pageKey) {
+  return pageKey === "main" ? "개인정보 동의" : "참여 인원";
+}
+
 export function SummaryPanel({
   pageKey,
   postureType,
@@ -82,6 +90,7 @@ export function SummaryPanel({
 }) {
   const showDonut = pageKey === "main";
   const postureViewMeta = getPostureViewMeta(postureType);
+  const consentLabel = getConsentLabel(pageKey);
 
   return (
     <article className="info-card info-card--primary">
@@ -95,7 +104,7 @@ export function SummaryPanel({
           className="dashboard-graph-switch"
           onClick={onCyclePostureType}
           aria-label="그래프 보기 전환"
-          title="클릭해서 총합, 정답, 오답 그래프를 전환합니다."
+          title="클릭해서 총합, 정답, 오답 그래프를 전환합니다"
         >
           <div className="donut-panel">
             <div className="donut-block">
@@ -108,7 +117,7 @@ export function SummaryPanel({
             </div>
 
             <div className="donut-block">
-              <p className="donut-block__label">개인정보 동의</p>
+              <p className="donut-block__label">{consentLabel}</p>
               <div
                 className="donut-chart"
                 style={{ background: createDonutBackground("ConsentCount", locations, postureType) }}
@@ -149,7 +158,7 @@ export function SummaryPanel({
             <strong className="metric-box__value">{formatNumber(displayedSessionCount, "건")}</strong>
           </div>
           <div className="metric-box">
-            <p className="metric-box__label">개인정보 동의</p>
+            <p className="metric-box__label">{consentLabel}</p>
             <strong className="metric-box__value">{formatNumber(displayedConsentCount, "명")}</strong>
           </div>
         </div>
