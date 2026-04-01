@@ -1089,6 +1089,13 @@ body::before {
   gap: 14px;
 }
 
+.collection-inline-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+}
+
 .collection-panel__header {
   display: flex;
   justify-content: space-between;
@@ -1181,10 +1188,10 @@ body::before {
   gap: 12px;
 }
 
-.collection-posture-grid {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 12px;
+.collection-posture-toggle {
+  display: inline-grid;
+  grid-template-columns: repeat(2, minmax(0, auto));
+  gap: 10px;
 }
 
 .collection-body-button {
@@ -1215,12 +1222,15 @@ body::before {
 }
 
 .collection-posture-button {
-  min-height: 60px;
+  min-width: 84px;
+  min-height: 46px;
+  padding: 0 16px;
   border: 1px solid rgba(95, 202, 255, 0.18);
-  border-radius: 18px;
+  border-radius: 14px;
   background: rgba(12, 35, 64, 0.74);
   color: var(--text);
   font: inherit;
+  font-size: 0.95rem;
   font-weight: 800;
   cursor: pointer;
   transition: transform 0.18s ease, border-color 0.18s ease, background 0.18s ease;
@@ -1539,6 +1549,11 @@ body::before {
 
   .collection-grid {
     grid-template-columns: 1fr;
+  }
+
+  .collection-inline-header {
+    flex-direction: column;
+    align-items: stretch;
   }
 
   .legacy-drawer {

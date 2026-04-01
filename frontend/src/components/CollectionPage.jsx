@@ -307,7 +307,31 @@ export function CollectionPage({
 
           <aside className="collection-panel collection-panel--actions">
             <div className="collection-panel__section">
-              <h2>촬영 부위 선택</h2>
+              <div className="collection-inline-header">
+                <h2>촬영 부위 선택</h2>
+                <div className="collection-posture-toggle" aria-label="정답 오답 선택">
+                  <button
+                    type="button"
+                    className={`collection-posture-button${
+                      selectedPostureType === "correct" ? " is-active" : ""
+                    }`}
+                    onClick={() => setSelectedPostureType("correct")}
+                    disabled={isRecording || isSaving}
+                  >
+                    정답
+                  </button>
+                  <button
+                    type="button"
+                    className={`collection-posture-button${
+                      selectedPostureType === "incorrect" ? " is-active" : ""
+                    }`}
+                    onClick={() => setSelectedPostureType("incorrect")}
+                    disabled={isRecording || isSaving}
+                  >
+                    오답
+                  </button>
+                </div>
+              </div>
               <div className="collection-body-grid">
                 {BODY_PART_OPTIONS.map((bodyPart) => (
                   <button
@@ -322,32 +346,6 @@ export function CollectionPage({
                     {bodyPart.label}
                   </button>
                 ))}
-              </div>
-            </div>
-
-            <div className="collection-panel__section">
-              <h2>정답 / 오답 선택</h2>
-              <div className="collection-posture-grid">
-                <button
-                  type="button"
-                  className={`collection-posture-button${
-                    selectedPostureType === "correct" ? " is-active" : ""
-                  }`}
-                  onClick={() => setSelectedPostureType("correct")}
-                  disabled={isRecording || isSaving}
-                >
-                  정답
-                </button>
-                <button
-                  type="button"
-                  className={`collection-posture-button${
-                    selectedPostureType === "incorrect" ? " is-active" : ""
-                  }`}
-                  onClick={() => setSelectedPostureType("incorrect")}
-                  disabled={isRecording || isSaving}
-                >
-                  오답
-                </button>
               </div>
             </div>
 
