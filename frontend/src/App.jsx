@@ -331,6 +331,17 @@ export default function App() {
     navigateTo({ view: "login" });
   }, []);
 
+  const handleGoToCollectorLogin = useCallback(async () => {
+    await clearFirebaseSession().catch(() => {});
+    window.localStorage.removeItem(AUTH_ADMIN_SESSION_KEY);
+    window.localStorage.removeItem(AUTH_COLLECTOR_SESSION_KEY);
+    setAuthSession(null);
+    setCollectorSession(null);
+    setAdjustmentDrawerOpen(false);
+    setView("login");
+    navigateTo({ view: "login" });
+  }, []);
+
   const logoutCountdownLabel = useIdleLogout({
     enabled: isCollectorSession && view === "collect",
     onLogout: handleCollectorLogout,
@@ -428,6 +439,7 @@ export default function App() {
         onNavigatePage={handleNavigatePage}
         onChangePostureType={handleChangePostureType}
         onCyclePostureType={handleCyclePostureType}
+        onGoToCollectorLogin={handleGoToCollectorLogin}
         onLogout={handleAdminLogout}
         adjustmentDrawerOpen={adjustmentDrawerOpen}
         onOpenAdjustmentDrawer={() => setAdjustmentDrawerOpen(true)}

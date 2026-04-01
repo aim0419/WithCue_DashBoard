@@ -16,6 +16,7 @@ export function AdminDashboardPage({
   onNavigatePage,
   onChangePostureType,
   onCyclePostureType,
+  onGoToCollectorLogin,
   onLogout,
   adjustmentDrawerOpen,
   onOpenAdjustmentDrawer,
@@ -35,6 +36,13 @@ export function AdminDashboardPage({
           <div className="board-header__actions">
             <button type="button" className="dashboard-action" onClick={onOpenAdjustmentDrawer}>
               기존 데이터 반영
+            </button>
+            <button
+              type="button"
+              className="dashboard-secondary-action"
+              onClick={onGoToCollectorLogin}
+            >
+              수집 페이지 이동
             </button>
             <button type="button" className="dashboard-logout" onClick={onLogout}>
               로그아웃
