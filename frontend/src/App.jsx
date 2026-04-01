@@ -106,6 +106,7 @@ export default function App() {
 
   const sessionRoles = getSessionRoles(authSession);
   const hasAdminSession = sessionRoles.includes("admin");
+  const adminCanOpenCollector = sessionRoles.includes("collector");
   const isCollectorSession = Boolean(collectorSession);
   const collectorCanOpenDashboard = getSessionRoles(collectorSession).includes("admin");
 
@@ -332,16 +333,26 @@ export default function App() {
     navigateTo({ view: "login" });
   }, []);
 
-  const handleGoToCollectorLogin = useCallback(async () => {
-    await clearFirebaseSession().catch(() => {});
+  const handleGoToCollectorLogin = useCallback(() => {
+    if (!authSession || !getSessionRoles(authSession).includes("collector")) {
+      return;
+    }
+
+    const collectorSessionData = {
+      ...authSession,
+      role: "collector",
+      roles: getSessionRoles(authSession),
+      postureType: "",
+    };
+
     window.localStorage.removeItem(AUTH_ADMIN_SESSION_KEY);
-    window.localStorage.removeItem(AUTH_COLLECTOR_SESSION_KEY);
+    persistCollectorSession(collectorSessionData);
     setAuthSession(null);
-    setCollectorSession(null);
+    setCollectorSession(collectorSessionData);
     setAdjustmentDrawerOpen(false);
-    setView("login");
-    navigateTo({ view: "login" });
-  }, []);
+    setView("answer-select");
+    navigateTo({ view: "answer-select" });
+  }, [authSession]);
 
   const handleOpenDashboardFromCollector = useCallback(() => {
     if (!collectorSession || !getSessionRoles(collectorSession).includes("admin")) {
@@ -461,6 +472,7 @@ export default function App() {
         onNavigatePage={handleNavigatePage}
         onChangePostureType={handleChangePostureType}
         onCyclePostureType={handleCyclePostureType}
+        canGoToCollectorLogin={adminCanOpenCollector}
         onGoToCollectorLogin={handleGoToCollectorLogin}
         onLogout={handleAdminLogout}
         adjustmentDrawerOpen={adjustmentDrawerOpen}
