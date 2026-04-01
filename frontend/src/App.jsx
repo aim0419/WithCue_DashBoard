@@ -107,6 +107,7 @@ export default function App() {
   const sessionRoles = getSessionRoles(authSession);
   const hasAdminSession = sessionRoles.includes("admin");
   const isCollectorSession = Boolean(collectorSession);
+  const collectorCanOpenDashboard = getSessionRoles(collectorSession).includes("admin");
 
   useEffect(() => {
     const handleLocationChange = () => {
@@ -342,6 +343,27 @@ export default function App() {
     navigateTo({ view: "login" });
   }, []);
 
+  const handleOpenDashboardFromCollector = useCallback(() => {
+    if (!collectorSession || !getSessionRoles(collectorSession).includes("admin")) {
+      return;
+    }
+
+    const adminSession = {
+      ...collectorSession,
+      role: "admin",
+      roles: getSessionRoles(collectorSession),
+    };
+
+    window.localStorage.setItem(AUTH_ADMIN_SESSION_KEY, JSON.stringify(adminSession));
+    window.localStorage.removeItem(AUTH_COLLECTOR_SESSION_KEY);
+    setAuthSession(adminSession);
+    setCollectorSession(null);
+    setView("dashboard");
+    setPageKey("main");
+    setPostureFilter("all");
+    navigateTo({ page: "main", posture: "all" });
+  }, [collectorSession]);
+
   const logoutCountdownLabel = useIdleLogout({
     enabled: isCollectorSession && view === "collect",
     onLogout: handleCollectorLogout,
@@ -469,6 +491,8 @@ export default function App() {
         profile={authProfile}
         onLogout={handleCollectorLogout}
         logoutCountdownLabel={logoutCountdownLabel}
+        canOpenDashboard={collectorCanOpenDashboard}
+        onOpenDashboard={handleOpenDashboardFromCollector}
       />
     );
   }

@@ -35,7 +35,14 @@ function downloadBlobFile(blob, fileName) {
   URL.revokeObjectURL(url);
 }
 
-export function CollectionPage({ session, profile, onLogout, logoutCountdownLabel }) {
+export function CollectionPage({
+  session,
+  profile,
+  onLogout,
+  logoutCountdownLabel,
+  canOpenDashboard,
+  onOpenDashboard,
+}) {
   const videoRef = useRef(null);
   const streamRef = useRef(null);
   const mediaRecorderRef = useRef(null);
@@ -58,11 +65,11 @@ export function CollectionPage({ session, profile, onLogout, logoutCountdownLabe
     [selectedBodyPartKey],
   );
   const postureLabel = formatPostureLabel(session?.postureType);
-  const recordingStatusLabel = `${displayProfile?.name || "참여자"}님 ${activeBodyPart.label} ${postureLabel} 녹화중`;
+  const recordingStatusLabel = `${displayProfile?.name || "참여자"}님 녹화중`;
 
   useEffect(() => {
     ensureCollectorConsentAtLocation(session).catch(() => {
-      // 참여 기록 실패가 촬영 화면 자체를 막지 않도록 무시.
+      // 참여 기록 실패가 촬영 자체를 막지 않도록 무시한다.
     });
   }, [session]);
 
@@ -168,7 +175,7 @@ export function CollectionPage({ session, profile, onLogout, logoutCountdownLabe
             durationMs,
           });
 
-          setDownloadMessage("녹화 파일 저장과 집계 반영이 완료되었습니다.");
+          setDownloadMessage("녹화 파일 다운로드와 집계 반영이 완료되었습니다.");
           setStatusMessage("다음 촬영을 이어서 진행할 수 있습니다.");
         } catch (error) {
           setErrorMessage(error?.message || "녹화 저장 중 오류가 발생했습니다.");
@@ -204,17 +211,18 @@ export function CollectionPage({ session, profile, onLogout, logoutCountdownLabe
             <h1>데이터 수집</h1>
           </div>
 
-          <span className="session-expiry">{logoutCountdownLabel}</span>
-          <button type="button" className="dashboard-logout" onClick={onLogout}>
-            로그아웃
-          </button>
-        </header>
-
-        {isRecording ? (
-          <div className="collection-recording-banner">
-            <p className="collection-recording-badge">{recordingStatusLabel}</p>
+          <div className="collection-header__actions">
+            <span className="session-expiry">{logoutCountdownLabel}</span>
+            {canOpenDashboard ? (
+              <button type="button" className="dashboard-secondary-action" onClick={onOpenDashboard}>
+                대시보드 전환
+              </button>
+            ) : null}
+            <button type="button" className="dashboard-logout" onClick={onLogout}>
+              로그아웃
+            </button>
           </div>
-        ) : null}
+        </header>
 
         <section className="collection-chip-row" aria-label="참여자 정보">
           <span className="collection-chip">수집 위치: {getLocationChipLabel(session?.location)}</span>
@@ -229,6 +237,20 @@ export function CollectionPage({ session, profile, onLogout, logoutCountdownLabe
             <div className="collection-panel__header">
               <div>
                 <h2>카메라 미리보기</h2>
+              </div>
+            </div>
+
+            <div className="collection-preview-frame">
+              <video ref={videoRef} className="collection-preview" autoPlay muted playsInline />
+            </div>
+
+            <div className="collection-panel__control-stack">
+              <div className="collection-recording-inline" aria-live="polite">
+                {isRecording ? (
+                  <p className="collection-recording-inline__badge">{recordingStatusLabel}</p>
+                ) : (
+                  <div className="collection-recording-inline__placeholder" />
+                )}
               </div>
 
               <label className="collection-device-field">
@@ -249,10 +271,6 @@ export function CollectionPage({ session, profile, onLogout, logoutCountdownLabe
                   )}
                 </select>
               </label>
-            </div>
-
-            <div className="collection-preview-frame">
-              <video ref={videoRef} className="collection-preview" autoPlay muted playsInline />
             </div>
 
             <div className="collection-status-stack">

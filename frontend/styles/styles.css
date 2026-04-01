@@ -1001,6 +1001,13 @@ body::before {
   gap: 20px;
 }
 
+.collection-header__actions {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
 .collection-title h1 {
   margin: 6px 0 10px;
   font-size: clamp(1.9rem, 3vw, 2.5rem);
@@ -1096,12 +1103,43 @@ body::before {
   line-height: 1.6;
 }
 
+.collection-panel__control-stack {
+  display: grid;
+  gap: 12px;
+}
+
 .collection-device-field {
   display: grid;
   gap: 8px;
-  min-width: min(100%, 240px);
   color: var(--text);
   font-weight: 700;
+}
+
+.collection-recording-inline {
+  min-height: 64px;
+}
+
+.collection-recording-inline__placeholder {
+  min-height: 64px;
+  border-radius: 18px;
+  border: 1px dashed rgba(95, 202, 255, 0.16);
+  background: rgba(8, 25, 44, 0.28);
+}
+
+.collection-recording-inline__badge {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 64px;
+  margin: 0;
+  padding: 0 22px;
+  border: 1px solid rgba(255, 120, 120, 0.55);
+  border-radius: 18px;
+  background: linear-gradient(90deg, rgba(182, 21, 44, 0.94), rgba(255, 82, 82, 0.9));
+  color: #fff4f4;
+  font-size: 1.2rem;
+  font-weight: 900;
+  text-align: center;
 }
 
 .collection-preview-frame {
