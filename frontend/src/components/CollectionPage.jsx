@@ -10,6 +10,7 @@ import {
   saveCollectionRecording,
 } from "../lib/collection-service.js";
 
+const AUTH_COLLECTOR_SESSION_KEY = "withcue-collector-session";
 const RECORDER_CANDIDATES = [
   "video/webm;codecs=vp9",
   "video/webm;codecs=vp8",
@@ -52,6 +53,9 @@ export function CollectionPage({
   const [selectedDeviceId, setSelectedDeviceId] = useState("");
   const [cameraDevices, setCameraDevices] = useState([]);
   const [selectedBodyPartKey, setSelectedBodyPartKey] = useState("Neck");
+  const [selectedPostureType, setSelectedPostureType] = useState(
+    session?.postureType === "incorrect" ? "incorrect" : "correct",
+  );
   const [isCameraReady, setIsCameraReady] = useState(false);
   const [isRecording, setIsRecording] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
@@ -60,18 +64,37 @@ export function CollectionPage({
   const [downloadMessage, setDownloadMessage] = useState("");
 
   const displayProfile = profile || session;
+  const activeSession = useMemo(
+    () => ({
+      ...session,
+      postureType: selectedPostureType,
+    }),
+    [selectedPostureType, session],
+  );
   const activeBodyPart = useMemo(
     () => BODY_PART_OPTIONS.find((option) => option.key === selectedBodyPartKey) || BODY_PART_OPTIONS[0],
     [selectedBodyPartKey],
   );
-  const postureLabel = formatPostureLabel(session?.postureType);
-  const recordingStatusLabel = `${displayProfile?.name || "참여자"}님 녹화중`;
+  const postureLabel = formatPostureLabel(selectedPostureType);
+  const recordingStatusLabel = `${displayProfile?.name || "참여자"}님 ${postureLabel} ${activeBodyPart.label} 녹화중`;
 
   useEffect(() => {
-    ensureCollectorConsentAtLocation(session).catch(() => {
-      // 참여 기록 실패가 촬영 자체를 막지 않도록 무시한다.
+    setSelectedPostureType(session?.postureType === "incorrect" ? "incorrect" : "correct");
+  }, [session?.postureType]);
+
+  useEffect(() => {
+    const nextSession = {
+      ...session,
+      postureType: selectedPostureType,
+    };
+    window.localStorage.setItem(AUTH_COLLECTOR_SESSION_KEY, JSON.stringify(nextSession));
+  }, [selectedPostureType, session]);
+
+  useEffect(() => {
+    ensureCollectorConsentAtLocation(activeSession).catch(() => {
+      // 참여 기록 실패가 촬영 흐름 자체를 막지는 않도록 둡니다.
     });
-  }, [session]);
+  }, [activeSession]);
 
   useEffect(() => {
     async function prepareCamera() {
@@ -108,7 +131,7 @@ export function CollectionPage({
         }
 
         setIsCameraReady(true);
-        setStatusMessage("카메라 연결이 완료되었습니다.");
+        setStatusMessage("카메라 연결이 완료됐습니다.");
       } catch {
         setIsCameraReady(false);
         setErrorMessage(
@@ -160,14 +183,14 @@ export function CollectionPage({
 
         try {
           const actualMimeType = mediaRecorder.mimeType || mimeType || "video/webm";
-          const fileName = buildRecordingFileName(session, selectedBodyPartKey);
+          const fileName = buildRecordingFileName(activeSession, selectedBodyPartKey);
           const recordedBlob = new Blob(chunksRef.current, { type: actualMimeType });
           const durationMs = Date.now() - recordingStartedAtRef.current;
 
           downloadBlobFile(recordedBlob, fileName);
 
           await saveCollectionRecording({
-            session,
+            session: activeSession,
             bodyPartKey: selectedBodyPartKey,
             fileName,
             mimeType: actualMimeType,
@@ -175,7 +198,7 @@ export function CollectionPage({
             durationMs,
           });
 
-          setDownloadMessage("녹화 파일 다운로드와 집계 반영이 완료되었습니다.");
+          setDownloadMessage("녹화 파일 다운로드와 집계 반영이 완료됐습니다.");
           setStatusMessage("다음 촬영을 이어서 진행할 수 있습니다.");
         } catch (error) {
           setErrorMessage(error?.message || "녹화 저장 중 오류가 발생했습니다.");
@@ -188,7 +211,7 @@ export function CollectionPage({
 
       mediaRecorder.start();
       setIsRecording(true);
-      setStatusMessage(`${activeBodyPart.label} ${postureLabel} 녹화를 시작했습니다.`);
+      setStatusMessage(`${postureLabel} ${activeBodyPart.label} 녹화를 시작했습니다.`);
     } catch {
       setErrorMessage("브라우저에서 녹화를 시작할 수 없습니다.");
     }
@@ -225,7 +248,7 @@ export function CollectionPage({
         </header>
 
         <section className="collection-chip-row" aria-label="참여자 정보">
-          <span className="collection-chip">수집 위치: {getLocationChipLabel(session?.location)}</span>
+          <span className="collection-chip">수집 위치: {getLocationChipLabel(activeSession?.location)}</span>
           <span className="collection-chip">이름: {displayProfile?.name || "-"}</span>
           <span className="collection-chip">성별: {formatGenderLabel(displayProfile?.gender)}</span>
           <span className="collection-chip">생년월일: {formatBirthDateChip(displayProfile?.birthDate)}</span>
@@ -283,29 +306,56 @@ export function CollectionPage({
           </article>
 
           <aside className="collection-panel collection-panel--actions">
-            <div>
+            <div className="collection-panel__section">
               <h2>촬영 부위 선택</h2>
+              <div className="collection-body-grid">
+                {BODY_PART_OPTIONS.map((bodyPart) => (
+                  <button
+                    key={bodyPart.key}
+                    type="button"
+                    className={`collection-body-button${
+                      selectedBodyPartKey === bodyPart.key ? " is-active" : ""
+                    }`}
+                    onClick={() => setSelectedBodyPartKey(bodyPart.key)}
+                    disabled={isRecording || isSaving}
+                  >
+                    {bodyPart.label}
+                  </button>
+                ))}
+              </div>
             </div>
 
-            <div className="collection-body-grid">
-              {BODY_PART_OPTIONS.map((bodyPart) => (
+            <div className="collection-panel__section">
+              <h2>정답 / 오답 선택</h2>
+              <div className="collection-posture-grid">
                 <button
-                  key={bodyPart.key}
                   type="button"
-                  className={`collection-body-button${
-                    selectedBodyPartKey === bodyPart.key ? " is-active" : ""
+                  className={`collection-posture-button${
+                    selectedPostureType === "correct" ? " is-active" : ""
                   }`}
-                  onClick={() => setSelectedBodyPartKey(bodyPart.key)}
+                  onClick={() => setSelectedPostureType("correct")}
                   disabled={isRecording || isSaving}
                 >
-                  {bodyPart.label}
+                  정답
                 </button>
-              ))}
+                <button
+                  type="button"
+                  className={`collection-posture-button${
+                    selectedPostureType === "incorrect" ? " is-active" : ""
+                  }`}
+                  onClick={() => setSelectedPostureType("incorrect")}
+                  disabled={isRecording || isSaving}
+                >
+                  오답
+                </button>
+              </div>
             </div>
 
             <div className="collection-action-box">
-              <p className="collection-action-box__label">현재 선택 부위</p>
-              <strong className="collection-action-box__value">{activeBodyPart.label}</strong>
+              <p className="collection-action-box__label">현재 선택</p>
+              <strong className="collection-action-box__value">
+                {postureLabel} {activeBodyPart.label}
+              </strong>
             </div>
 
             <div className="collection-action-row">

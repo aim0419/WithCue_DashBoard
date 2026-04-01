@@ -1084,6 +1084,11 @@ body::before {
   align-content: start;
 }
 
+.collection-panel__section {
+  display: grid;
+  gap: 14px;
+}
+
 .collection-panel__header {
   display: flex;
   justify-content: space-between;
@@ -1176,6 +1181,12 @@ body::before {
   gap: 12px;
 }
 
+.collection-posture-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+
 .collection-body-button {
   min-height: 72px;
   border: 1px solid rgba(95, 202, 255, 0.18);
@@ -1199,6 +1210,33 @@ body::before {
 }
 
 .collection-body-button.is-active {
+  background: linear-gradient(90deg, rgba(22, 181, 255, 0.88), rgba(63, 224, 255, 0.88));
+  color: #02111f;
+}
+
+.collection-posture-button {
+  min-height: 60px;
+  border: 1px solid rgba(95, 202, 255, 0.18);
+  border-radius: 18px;
+  background: rgba(12, 35, 64, 0.74);
+  color: var(--text);
+  font: inherit;
+  font-weight: 800;
+  cursor: pointer;
+  transition: transform 0.18s ease, border-color 0.18s ease, background 0.18s ease;
+}
+
+.collection-posture-button:hover:not(:disabled) {
+  transform: translateY(-1px);
+  border-color: rgba(116, 245, 227, 0.86);
+}
+
+.collection-posture-button:disabled {
+  cursor: not-allowed;
+  opacity: 0.6;
+}
+
+.collection-posture-button.is-active {
   background: linear-gradient(90deg, rgba(22, 181, 255, 0.88), rgba(63, 224, 255, 0.88));
   color: #02111f;
 }

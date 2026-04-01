@@ -2,7 +2,6 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { AdminDashboardPage } from "./components/AdminDashboardPage.jsx";
 import { AuthPage } from "./components/AuthPage.jsx";
 import { CollectionPage } from "./components/CollectionPage.jsx";
-import { PostureSelectPage } from "./components/PostureSelectPage.jsx";
 import { categoryPages, pageMeta } from "./data/dashboard-meta.js";
 import { useDashboardData } from "./hooks/useDashboardData.js";
 import { useIdleLogout } from "./hooks/useIdleLogout.js";
@@ -42,9 +41,7 @@ function getSessionRoles(session) {
 function getViewFromLocation() {
   const params = new URLSearchParams(window.location.search);
   const view = params.get("view") || "login";
-  return ["dashboard", "login", "signup", "admin-login", "answer-select", "collect"].includes(
-    view,
-  )
+  return ["dashboard", "login", "signup", "admin-login", "collect"].includes(view)
     ? view
     : "login";
 }
@@ -77,10 +74,6 @@ function navigateTo(paramsObject) {
 
 function persistCollectorSession(session) {
   window.localStorage.setItem(AUTH_COLLECTOR_SESSION_KEY, JSON.stringify(session));
-}
-
-function hasSelectedPostureType(session) {
-  return session?.postureType === "correct" || session?.postureType === "incorrect";
 }
 
 function getNextPostureFilter(currentPostureType) {
@@ -139,7 +132,7 @@ export default function App() {
       return;
     }
 
-    if (["login", "signup", "admin-login", "answer-select", "collect"].includes(view)) {
+    if (["login", "signup", "admin-login", "collect"].includes(view)) {
       setView("dashboard");
       setPageKey("main");
       setPostureFilter("all");
@@ -152,7 +145,7 @@ export default function App() {
       return;
     }
 
-    if (!collectorSession && ["answer-select", "collect"].includes(view)) {
+    if (!collectorSession && view === "collect") {
       setView("login");
       navigateTo({ view: "login" });
       return;
@@ -162,22 +155,9 @@ export default function App() {
       return;
     }
 
-    const collectorReady = hasSelectedPostureType(collectorSession);
-
-    if (!collectorReady && view === "collect") {
-      setView("answer-select");
-      navigateTo({ view: "answer-select" });
-      return;
-    }
-
     if (["login", "signup", "admin-login"].includes(view)) {
-      setView(collectorReady ? "collect" : "answer-select");
-      navigateTo({ view: collectorReady ? "collect" : "answer-select" });
-      return;
-    }
-
-    if (collectorReady && view === "answer-select") {
-      return;
+      setView("collect");
+      navigateTo({ view: "collect" });
     }
   }, [collectorSession, hasAdminSession, view]);
 
@@ -204,10 +184,12 @@ export default function App() {
       ),
     [dashboardData.ConsentUserIds, filteredLocations, pageKey],
   );
+
   const displayedSessionCount = useMemo(
     () => getDisplayedSessionCount(filteredLocations, postureFilter),
     [filteredLocations, postureFilter],
   );
+
   const displayedBodyParts = useMemo(
     () => sumBodyParts(filteredLocations, postureFilter),
     [filteredLocations, postureFilter],
@@ -224,7 +206,7 @@ export default function App() {
       const profile = result.profile;
       window.localStorage.setItem(AUTH_PROFILE_KEY, JSON.stringify(profile));
       setAuthProfile(profile);
-      setAuthNotice(result.message || "회원가입이 완료되었습니다. 같은 정보로 로그인해 주세요.");
+      setAuthNotice(result.message || "회원가입이 완료됐습니다. 같은 정보로 로그인해 주세요.");
       setView("login");
       navigateTo({ view: "login" });
       return { ok: true };
@@ -257,7 +239,7 @@ export default function App() {
       if (mode !== "admin-login" && !nextSessionRoles.includes("collector")) {
         return {
           ok: false,
-          message: "이 계정은 일반 수집 권한이 없습니다. 관리자 로그인을 사용해 주세요.",
+          message: "이 계정은 일반 수집 권한이 없습니다. 관리자 로그인으로 접근해 주세요.",
         };
       }
 
@@ -280,14 +262,15 @@ export default function App() {
           ...session,
           role: nextSessionRoles.includes("collector") ? "collector" : session.role,
           roles: nextSessionRoles,
-          postureType: "",
+          postureType: "correct",
         };
+
         window.localStorage.removeItem(AUTH_ADMIN_SESSION_KEY);
         persistCollectorSession(collectorSessionData);
         setAuthSession(null);
         setCollectorSession(collectorSessionData);
-        setView("answer-select");
-        navigateTo({ view: "answer-select" });
+        setView("collect");
+        navigateTo({ view: "collect" });
       }
 
       return { ok: true };
@@ -342,7 +325,7 @@ export default function App() {
       ...authSession,
       role: "collector",
       roles: getSessionRoles(authSession),
-      postureType: "",
+      postureType: "correct",
     };
 
     window.localStorage.removeItem(AUTH_ADMIN_SESSION_KEY);
@@ -350,8 +333,8 @@ export default function App() {
     setAuthSession(null);
     setCollectorSession(collectorSessionData);
     setAdjustmentDrawerOpen(false);
-    setView("answer-select");
-    navigateTo({ view: "answer-select" });
+    setView("collect");
+    navigateTo({ view: "collect" });
   }, [authSession]);
 
   const handleOpenDashboardFromCollector = useCallback(() => {
@@ -379,22 +362,6 @@ export default function App() {
     enabled: isCollectorSession && view === "collect",
     onLogout: handleCollectorLogout,
   });
-
-  const handleSelectPostureType = useCallback(
-    (nextPostureType) => {
-      const normalizedPostureType = nextPostureType === "incorrect" ? "incorrect" : "correct";
-      const nextSession = {
-        ...collectorSession,
-        postureType: normalizedPostureType,
-      };
-
-      setCollectorSession(nextSession);
-      persistCollectorSession(nextSession);
-      setView("collect");
-      navigateTo({ view: "collect" });
-    },
-    [collectorSession],
-  );
 
   const handleSubmitAdjustment = useCallback(
     async (form) => {
@@ -440,7 +407,7 @@ export default function App() {
     }
 
     if (collectorSession) {
-      document.title = view === "answer-select" ? "WithCue 유형 선택" : "WithCue 데이터 수집";
+      document.title = "WithCue 데이터 수집";
       return;
     }
 
@@ -487,16 +454,6 @@ export default function App() {
   }
 
   if (collectorSession) {
-    if (view === "answer-select") {
-      return (
-        <PostureSelectPage
-          session={collectorSession}
-          onLogout={handleCollectorLogout}
-          onSelect={handleSelectPostureType}
-        />
-      );
-    }
-
     return (
       <CollectionPage
         session={collectorSession}
